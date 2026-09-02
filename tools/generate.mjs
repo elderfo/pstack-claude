@@ -5,26 +5,32 @@
 // so a stale committed copy fails the build instead of shipping.
 //
 // Sources of truth:
-//   VERSION  -> the "version" field in the three plugin manifests
+//   VERSION  -> the "version" field in the three plugin manifests and the root
+//   package.json (the Pi package manifest)
 //   CHANGES.md must carry a heading for the current VERSION (release completeness)
 //   each skill's frontmatter (name + description) defines the shared Agent
 //   Skills boundary consumed natively by Codex, Prime, opencode, and Gemini CLI
 //   each public skill's menu-description
-//     -> its Codex prompt stub in plugins/pstack/.codex-plugin/prompts/
+//     -> one prompt file per runtime adapter in PROMPT_ADAPTERS (Codex stubs in
+//        .codex-plugin/prompts/, Pi templates in .pi-plugin/prompts/)
 //     -> its row in README.md's "Slash commands" table
 //   plugins/pstack/models.json (the model policy: role defaults, diverse panel,
-//   available slugs, Codex equivalents)
+//   available slugs, Codex and Pi equivalents)
 //     -> each model-consuming skill's "## Models" section
 //     -> setup-pstack's override-sheet block and interrogate's reviewer table
 //     -> the "## Model names" section of poteto-mode/references/codex-tools.md
+//        and of poteto-mode/references/pi-tools.md
 //   plugins/pstack/agents/{poteto-agent,comment-sicko}.md, LICENSE,
 //   LICENSE-cursor-team-kit, and NOTICE-skills.md
 //     -> portable copies under poteto-mode/references/{agents,licenses}/
+//   plugins/pstack/agents/*.md listed in PI_AGENTS
+//     -> pi-subagents agent definitions in .pi-plugin/agents/
 //   No other claude-* slug may appear in skill prose; the scan below fails on strays.
 //
 // Also validated: .agents/plugins/marketplace.json points at a real plugin
 // directory whose Codex manifest name matches (it carries no version; Codex
-// reads the version from .codex-plugin/plugin.json).
+// reads the version from .codex-plugin/plugin.json), and every path in the root
+// package.json "pi" object exists.
 
 import {
   existsSync,
@@ -46,6 +52,7 @@ import { pathIsInside, validateProsePaths, validateSkillsTree } from "./validate
 const repo = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const VERSIONED_MANIFESTS = [
+  "package.json",
   ".claude-plugin/marketplace.json",
   "plugins/pstack/.claude-plugin/plugin.json",
   "plugins/pstack/.codex-plugin/plugin.json",
@@ -231,6 +238,61 @@ export function promptStub({ name, menu }) {
   return `---\nname: ${name}\ndescription: ${menu}\ndisable-model-invocation: true\n---\n\nInvoke the \`${name}\` skill and follow it.\n`;
 }
 
+// Pi has no Skill tool, so the template tells the model to read the SKILL.md.
+// The trailing $@ expands to nothing when the command is typed bare.
+export function piPromptTemplate({ name, menu }) {
+  return `---\ndescription: ${menu}\nargument-hint: "[instructions]"\n---\n\nRead the \`${name}\` skill's SKILL.md in full and follow it. $@\n`;
+}
+
+// One row per runtime that gets generated prompt files. Adding a runtime is a
+// row here, not a second copy of the stamp-and-prune loop in main().
+export const PROMPT_ADAPTERS = [
+  {
+    runtime: "Codex",
+    dir: "plugins/pstack/.codex-plugin/prompts",
+    render: promptStub,
+  },
+  {
+    runtime: "Pi",
+    dir: "plugins/pstack/.pi-plugin/prompts",
+    render: piPromptTemplate,
+  },
+];
+
+// comment-sicko is report-only, so its allowlist carries no edit or write.
+export const PI_AGENTS = [
+  {
+    source: "plugins/pstack/agents/poteto-agent.md",
+    tools: "read, grep, find, ls, bash, edit, write",
+  },
+  {
+    source: "plugins/pstack/agents/comment-sicko.md",
+    tools: "read, grep, find, ls, bash",
+  },
+];
+
+const PI_AGENT_KEYS = [
+  "thinking: high",
+  "systemPromptMode: replace",
+  "inheritProjectContext: true",
+  "inheritSkills: true",
+];
+
+export function piAgentDefinition(sourceText, { tools }) {
+  const parsed = sourceText.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  if (!parsed) throw new Error("agent definition has no frontmatter block");
+  const [, front, body] = parsed;
+  const carried = front
+    .split("\n")
+    .filter((line) => line.startsWith("name: ") || line.startsWith("description: "));
+  if (carried.length !== 2) {
+    throw new Error(
+      `agent frontmatter needs one name and one description line, found ${carried.length}`,
+    );
+  }
+  return ["---", ...carried, `tools: ${tools}`, ...PI_AGENT_KEYS, "---", body].join("\n");
+}
+
 const code = (s) => `\`${s}\``;
 const codeList = (models) => models.map(code).join(", ");
 
@@ -316,6 +378,51 @@ export function codexModelNamesSection(models) {
     "effort and note in the verdict that diversity was reduced.\n\n" +
     "`/setup-pstack` writes the configured model list. On Codex, set it to your Codex model slugs."
   );
+}
+
+export function piModelNamesSection(models) {
+  const prefix = models.pi.providerPrefix;
+  const qualified = (slug) => code(`${prefix}/${slug}`);
+  return (
+    "Skills name Claude defaults (a single-role default for code, prose, and judgment plus a diverse-model panel; " +
+    "each model-consuming skill lists its own in a Models section). A Pi model ID is `provider/model`, so those " +
+    `slugs resolve as ${code(`${prefix}/<slug>`)} once the ${code(prefix)} provider is configured. List what you ` +
+    `have with ${code(`pi --list-models ${prefix}`)}.\n\n` +
+    `- Single-model roles: ${qualified(models.singleRoleDefault)}.\n` +
+    "- Diverse-model panels (`arena`, `architect`, `interrogate`, `how` critics, `reflect`): " +
+    `${models.panel.map(qualified).join(", ")}. The adversarial signal comes from diversity, so when a second ` +
+    `provider is configured swap one member for it (for example ${code(models.pi.crossVendorExample)}).\n` +
+    "- Thinking effort is a `:level` suffix on the ID: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`.\n\n" +
+    "`/setup-pstack` writes the configured model list. On Pi, write `provider/model` IDs."
+  );
+}
+
+// Pi reads the root package.json. A path typo there is silent (the package
+// installs, the extension or the agents just never load), so check every one.
+export function validatePiManifest(text, { pathExists }) {
+  const manifest = JSON.parse(text);
+  if (!(manifest.keywords ?? []).includes("pi-package")) {
+    throw new Error('package.json: "keywords" must include "pi-package" or Pi ignores the package');
+  }
+  const pi = manifest.pi ?? {};
+  const skills = pi.skills ?? [];
+  const sharedTree = ["./plugins/pstack/skills"];
+  if (JSON.stringify(skills) !== JSON.stringify(sharedTree)) {
+    throw new Error(
+      `package.json: "pi.skills" must be ${JSON.stringify(sharedTree)} (the one shared Agent Skills tree), ` +
+        `found ${JSON.stringify(skills)}`,
+    );
+  }
+  const declared = [
+    ...(pi.extensions ?? []),
+    ...(pi.prompts ?? []),
+    ...skills,
+    ...(pi.subagents?.agents ?? []),
+  ];
+  const missing = declared.filter((path) => !pathExists(path));
+  if (missing.length) {
+    throw new Error(`package.json: "pi" paths that do not exist: ${missing.join(", ")}`);
+  }
 }
 
 // After stamping, no claude-* model slug may survive in skill prose outside
@@ -474,11 +581,14 @@ function main() {
     text = stampOverrideSheet(text, models, path);
     if (stampFile(path, text, "skills/setup-pstack/SKILL.md (models)")) modelStamps++;
   }
-  {
-    const path = join(skillsDir, "poteto-mode/references/codex-tools.md");
+  for (const [file, render] of [
+    ["codex-tools.md", codexModelNamesSection],
+    ["pi-tools.md", piModelNamesSection],
+  ]) {
+    const path = join(skillsDir, "poteto-mode/references", file);
     const text = readFileSync(path, "utf8");
-    const next = replaceSection(text, "Model names", codexModelNamesSection(models), path);
-    if (stampFile(path, next, "poteto-mode/references/codex-tools.md (models)")) modelStamps++;
+    const next = replaceSection(text, "Model names", render(models), path);
+    if (stampFile(path, next, `poteto-mode/references/${file} (models)`)) modelStamps++;
   }
   if (modelStamps === 0) console.log("ok: model-policy sections current");
 
@@ -504,23 +614,38 @@ function main() {
 
   const skills = publicSkills(skillsDir);
 
-  const promptsDir = join(repo, "plugins/pstack/.codex-plugin/prompts");
-  let promptsChanged = 0;
-  for (const skill of skills) {
-    const path = join(promptsDir, `${skill.name}.md`);
-    const next = promptStub(skill);
-    if (existsSync(path) && readFileSync(path, "utf8") === next) continue;
-    writeFileSync(path, next);
-    promptsChanged++;
-    console.log(`stamped: .codex-plugin/prompts/${skill.name}.md`);
+  const expectedPrompts = new Set(skills.map((s) => `${s.name}.md`));
+  for (const adapter of PROMPT_ADAPTERS) {
+    const dir = join(repo, adapter.dir);
+    mkdirSync(dir, { recursive: true });
+    let changed = 0;
+    for (const skill of skills) {
+      const path = join(dir, `${skill.name}.md`);
+      if (stampFile(path, adapter.render(skill), `${adapter.dir}/${skill.name}.md`)) changed++;
+    }
+    for (const file of readdirSync(dir)) {
+      if (!file.endsWith(".md") || expectedPrompts.has(file)) continue;
+      unlinkSync(join(dir, file));
+      console.log(`removed orphan: ${adapter.dir}/${file}`);
+    }
+    if (changed === 0) console.log(`ok: ${skills.length} ${adapter.runtime} prompts current`);
   }
-  const expected = new Set(skills.map((s) => `${s.name}.md`));
-  for (const file of readdirSync(promptsDir)) {
-    if (!file.endsWith(".md") || expected.has(file)) continue;
-    unlinkSync(join(promptsDir, file));
-    console.log(`removed orphan: .codex-plugin/prompts/${file}`);
+
+  const piAgentsDir = join(repo, "plugins/pstack/.pi-plugin/agents");
+  mkdirSync(piAgentsDir, { recursive: true });
+  let piAgentsChanged = 0;
+  for (const agent of PI_AGENTS) {
+    const name = basename(agent.source);
+    const next = piAgentDefinition(readFileSync(join(repo, agent.source), "utf8"), agent);
+    if (stampFile(join(piAgentsDir, name), next, `.pi-plugin/agents/${name}`)) piAgentsChanged++;
   }
-  if (promptsChanged === 0) console.log(`ok: ${skills.length} Codex prompts current`);
+  const expectedPiAgents = new Set(PI_AGENTS.map((a) => basename(a.source)));
+  for (const file of readdirSync(piAgentsDir)) {
+    if (expectedPiAgents.has(file)) continue;
+    rmSync(join(piAgentsDir, file), { recursive: true, force: true });
+    console.log(`removed orphan: .pi-plugin/agents/${file}`);
+  }
+  if (piAgentsChanged === 0) console.log(`ok: ${PI_AGENTS.length} Pi agent definitions current`);
 
   const readmePath = join(repo, "README.md");
   const readme = readFileSync(readmePath, "utf8");
@@ -555,6 +680,11 @@ function main() {
     statOf: (rel) => (existsSync(join(pluginRoot, rel)) ? statSync(join(pluginRoot, rel)) : null),
   });
   console.log("ok: hooks.json commands point at existing, executable scripts");
+
+  validatePiManifest(readFileSync(join(repo, "package.json"), "utf8"), {
+    pathExists: (p) => existsSync(join(repo, p)),
+  });
+  console.log("ok: package.json pi manifest points at the shared skills tree and real paths");
 }
 
 // Guarded so importing the generator's validation and rendering functions does

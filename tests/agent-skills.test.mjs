@@ -9,15 +9,19 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
   agentSkills,
+  PI_AGENTS,
+  piAgentDefinition,
+  piPromptTemplate,
   PORTABLE_ASSETS,
   promptStub,
   publicSkills,
   syncPortableAssets,
+  validatePiManifest,
 } from "../tools/generate.mjs";
 import { validateProsePaths, validateSkillsTree } from "../tools/validate-skills.mjs";
 
@@ -52,6 +56,18 @@ describe("shared Agent Skills tree", () => {
       expect(out).toContain(`name: ${skill.name}`);
       expect(out).toContain("disable-model-invocation: true");
       expect(out).toContain(`Invoke the \`${skill.name}\` skill and follow it.`);
+    }
+  });
+
+  test("derives a Pi prompt template from the same shared skills", () => {
+    const skills = publicSkills(skillsDir);
+    expect(skills.length).toBeGreaterThan(0);
+    for (const skill of skills) {
+      const out = piPromptTemplate(skill);
+      expect(out).toContain(`description: ${skill.menu}`);
+      expect(out).toContain('argument-hint: "[instructions]"');
+      expect(out).toContain(`Read the \`${skill.name}\` skill's SKILL.md in full and follow it.`);
+      expect(out.trimEnd().endsWith("$@")).toBe(true);
     }
   });
 
@@ -183,6 +199,70 @@ describe("shared Agent Skills tree", () => {
       expect(copy).toBe(readFileSync(join(agentsDir, `${name}.md`), "utf8"));
       expect(copy).toContain(`name: ${name}`);
     }
+  });
+
+  test("Pi agent definitions carry the source prompt under a pi-subagents allowlist", () => {
+    for (const agent of PI_AGENTS) {
+      const source = readFileSync(join(repoRoot, agent.source), "utf8");
+      const [, sourceFront, body] = source.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+      const front = piAgentDefinition(source, agent).match(/^---\n([\s\S]*?)\n---\n/)[1].split("\n");
+
+      expect(front[0]).toBe(`name: ${basename(agent.source, ".md")}`);
+      expect(front[1]).toBe(sourceFront.split("\n").find((l) => l.startsWith("description: ")));
+      expect(front.slice(2)).toEqual([
+        `tools: ${agent.tools}`,
+        "thinking: high",
+        "systemPromptMode: replace",
+        "inheritProjectContext: true",
+        "inheritSkills: true",
+      ]);
+      expect(piAgentDefinition(source, agent).endsWith(body)).toBe(true);
+    }
+  });
+
+  test("the report-only Pi agent gets no write tools", () => {
+    const sicko = PI_AGENTS.find((a) => a.source.endsWith("comment-sicko.md"));
+    const tools = sicko.tools.split(", ");
+    expect(tools).not.toContain("edit");
+    expect(tools).not.toContain("write");
+  });
+
+  test("the committed root manifest satisfies the Pi package contract", () => {
+    expect(() =>
+      validatePiManifest(readFileSync(join(repoRoot, "package.json"), "utf8"), {
+        pathExists: (p) => existsSync(join(repoRoot, p)),
+      }),
+    ).not.toThrow();
+  });
+
+  test("a Pi manifest fails on a dead path, a missing keyword, or a private skills tree", () => {
+    const manifest = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
+    const check = (mutate) => {
+      const next = mutate(structuredClone(manifest));
+      return () =>
+        validatePiManifest(JSON.stringify(next), {
+          pathExists: (p) => existsSync(join(repoRoot, p)),
+        });
+    };
+
+    expect(
+      check((m) => {
+        m.pi.extensions = ["./plugins/pstack/.pi-plugin/extensions/gone.ts"];
+        return m;
+      }),
+    ).toThrow("./plugins/pstack/.pi-plugin/extensions/gone.ts");
+    expect(
+      check((m) => {
+        m.keywords = m.keywords.filter((k) => k !== "pi-package");
+        return m;
+      }),
+    ).toThrow('"keywords" must include "pi-package"');
+    expect(
+      check((m) => {
+        m.pi.skills = ["./plugins/pstack/.pi-plugin/skills"];
+        return m;
+      }),
+    ).toThrow('"pi.skills" must be');
   });
 
   test("every required portable asset lives inside the skills tree", () => {

@@ -1,0 +1,35 @@
+{
+  "name": "pstack",
+  "version": "0.9.19",
+  "description": "if you want to go fast, go deep first. Pi package for pstack: rigorous agent workflows you can parallelize with confidence. Original pstack by Lauren Tan (poteto).",
+  "private": true,
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pstack",
+    "poteto-mode",
+    "workflow",
+    "principles",
+    "agent-style",
+    "subagents",
+    "unslop"
+  ],
+  "homepage": "https://github.com/michael-denyer/pstack-claude",
+  "repository": "https://github.com/michael-denyer/pstack-claude",
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    }
+  },
+  "pi": {
+    "extensions": ["./plugins/pstack/.pi-plugin/extensions/pstack.ts"],
+    "skills": ["./plugins/pstack/skills"],
+    "prompts": ["./plugins/pstack/.pi-plugin/prompts"],
+    "subagents": {
+      "agents": ["./plugins/pstack/.pi-plugin/agents"]
+    }
+  }
+}

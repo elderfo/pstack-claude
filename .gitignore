@@ -11,3 +11,7 @@
 
 # bun deps for the vendored poteto-mode scripts (bootstrap.ts installs them on first run)
 plugins/pstack/skills/poteto-mode/scripts/node_modules/
+
+# Pi project state written by installed packages (pi-background-tasks makes .pi/tasks/).
+# The Pi package manifest is the tracked root package.json, not anything here.
+.pi/
