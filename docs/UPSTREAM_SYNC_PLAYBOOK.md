@@ -53,7 +53,7 @@ claude --plugin-dir plugins/pstack           # Claude Code
 pi -e "$PWD" --no-session -p "list your skills"  # Pi
 ```
 
-For Codex, use the symlink install from the README and confirm the skills list as `pstack:<name>`. In each runtime, confirm one skill loads and the mandate is present. A build that generates cleanly but does not load is still broken.
+For Codex, use the symlink install from the README and confirm the skills list as `pstack:<name>`. In each runtime, confirm one skill loads. In Claude Code and Pi, also confirm the mandate is present; Codex has no mandate injection. A build that generates cleanly but does not load is still broken.
 
 ## 8. Release
 
