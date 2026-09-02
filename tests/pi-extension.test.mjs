@@ -14,6 +14,7 @@ const mandate = readFileSync(
 
 describe("Pi routing extension", () => {
   test("appends the mandate to every turn's system prompt", async () => {
+    delete process.env.PI_SUBAGENT_CHILD;
     const { default: pstack } = await import(extension);
     const handlers = new Map();
     pstack({ on: (event, handler) => handlers.set(event, handler) });

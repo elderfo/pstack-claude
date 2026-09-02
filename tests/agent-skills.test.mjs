@@ -212,7 +212,6 @@ describe("shared Agent Skills tree", () => {
       expect(front.slice(2)).toEqual([
         `tools: ${agent.tools}`,
         "thinking: high",
-        "systemPromptMode: replace",
         "inheritProjectContext: true",
         "inheritSkills: true",
       ]);
@@ -235,7 +234,7 @@ describe("shared Agent Skills tree", () => {
     ).not.toThrow();
   });
 
-  test("a Pi manifest fails on a dead path, a missing keyword, or a private skills tree", () => {
+  test("a Pi manifest fails on a dead path, a missing keyword, a private skills tree, or a dropped output", () => {
     const manifest = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
     const check = (mutate) => {
       const next = mutate(structuredClone(manifest));
@@ -247,7 +246,7 @@ describe("shared Agent Skills tree", () => {
 
     expect(
       check((m) => {
-        m.pi.extensions = ["./plugins/pstack/.pi-plugin/extensions/gone.ts"];
+        m.pi.extensions.push("./plugins/pstack/.pi-plugin/extensions/gone.ts");
         return m;
       }),
     ).toThrow("./plugins/pstack/.pi-plugin/extensions/gone.ts");
@@ -263,6 +262,26 @@ describe("shared Agent Skills tree", () => {
         return m;
       }),
     ).toThrow('"pi.skills" must be');
+    expect(
+      check((m) => {
+        delete m.pi.prompts;
+        return m;
+      }),
+    ).toThrow('"pi.prompts" must list ./plugins/pstack/.pi-plugin/prompts');
+    expect(
+      check((m) => {
+        m.pi.subagents = {};
+        return m;
+      }),
+    ).toThrow('"pi.subagents.agents" must list');
+  });
+
+  test("an agent source with a duplicate description line is rejected by name", () => {
+    const source = "---\nname: x\ndescription: one\ndescription: two\n---\n\nbody\n";
+    expect(() => piAgentDefinition(source, { tools: "read" })).toThrow("exactly one description line, found 2");
+    expect(() => piAgentDefinition("---\ndescription: one\n---\n\nbody\n", { tools: "read" })).toThrow(
+      "exactly one name line, found 0",
+    );
   });
 
   test("every required portable asset lives inside the skills tree", () => {

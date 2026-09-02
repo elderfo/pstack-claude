@@ -2,13 +2,13 @@
 
 pstack skills are written in Claude Code tool language (the `Skill` tool, the `Agent` tool, `AskUserQuestion`, `claude-*` model slugs). On Pi the skills are the same files; only the tool names resolve differently. Read this when a pstack skill names a Claude tool, a Claude built-in skill, or a `claude-*` model. This file is Pi-specific. Codex has its own map, and Gemini CLI, opencode, Prime Agent, and other runtimes must use their own concrete tools, model names, and configuration paths.
 
-This map assumes four companion packages are installed alongside pstack. Each source needs its own `pi install`:
+This map assumes three companion packages are installed alongside pstack, plus `pi-web-access` for web evidence. Each source needs its own `pi install`:
 
 ```shell
 pi install npm:pi-subagents
 pi install npm:pi-mcp-adapter
 pi install npm:pi-background-tasks
-pi install npm:pi-claude-marketplace
+pi install npm:pi-web-access
 ```
 
 What degrades without each one:
@@ -16,6 +16,7 @@ What degrades without each one:
 - No `pi-subagents`: there is no `subagent` tool, so the fan-out skills (`interrogate`, `why`, `how`, `arena`, `reflect`, `architect`, `swarm`) run as one sequential pass in the main session. Say so in the verdict.
 - No `pi-mcp-adapter`: there is no `mcp` tool, so `why`'s external evidence lanes (issue trackers, chat history, incident records) report as gaps rather than findings.
 - No `pi-background-tasks`: there is no `bg_run`, so run long commands in the foreground and accept the wait. Never sleep or poll to fake a background wait.
+- No `pi-web-access`: there is no `fetch_content` or `web_search`, so fetch with `bash` and `curl`, and report web evidence you could not gather as a gap.
 
 `pi-claude-marketplace` is only needed for the bridge install of Claude plugins. The native Pi package does not use it.
 
@@ -92,7 +93,7 @@ Claude Code registers each MCP tool under an `mcp__<server>__<tool>` name and li
 - `mcp({ tool: "<name>", args: { ... } })` calls it. Gateway parameters sit at the top level of the call.
 - `mcpScript({ code })` runs several calls in one turn through `tools.search`, `tools.describe`, `tools.call(path, args)`, and `emit`.
 
-The adapter reads `.mcp.json`, `.pi/mcp.json`, `~/.pi/agent/mcp.json`, `~/.agents/mcp.json`, and `~/.config/mcp/mcp.json`. The `directTools` setting registers chosen tools individually instead of behind the gateway. The adapter ships no servers of its own, so browser, GitHub, and service MCPs are configured separately.
+The adapter reads `.mcp.json`, `.pi/mcp.json`, `~/.pi/agent/mcp.json`, `~/.agents/mcp.json`, `~/.agents/mcp/mcp.json`, and `~/.config/mcp/mcp.json`. The `directTools` setting registers chosen tools individually instead of behind the gateway. The adapter ships no servers of its own, so browser, GitHub, and service MCPs are configured separately.
 
 A skill that names an MCP category you have not configured is not a failure. The `why` skill in particular treats an unconfigured evidence category as a reported gap in the synthesis, and the verdict says which lanes ran.
 

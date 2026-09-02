@@ -259,11 +259,14 @@ export const PROMPT_ADAPTERS = [
   },
 ];
 
-// comment-sicko is report-only, so its allowlist carries no edit or write.
+// Bare names, not a `package:` namespace, because the skills dispatch
+// `poteto-agent` and `comment-sicko` by exactly those names. comment-sicko is
+// report-only, so its allowlist carries no edit or write; poteto-agent matches
+// the bundled worker, including contact_supervisor for escalation to the parent.
 export const PI_AGENTS = [
   {
     source: "plugins/pstack/agents/poteto-agent.md",
-    tools: "read, grep, find, ls, bash, edit, write",
+    tools: "read, grep, find, ls, bash, edit, write, contact_supervisor",
   },
   {
     source: "plugins/pstack/agents/comment-sicko.md",
@@ -271,25 +274,22 @@ export const PI_AGENTS = [
   },
 ];
 
-const PI_AGENT_KEYS = [
-  "thinking: high",
-  "systemPromptMode: replace",
-  "inheritProjectContext: true",
-  "inheritSkills: true",
-];
+// systemPromptMode stays at pi-subagents' default (replace). The three keys
+// below are not defaults, so each carries information.
+const PI_AGENT_KEYS = ["thinking: high", "inheritProjectContext: true", "inheritSkills: true"];
 
 export function piAgentDefinition(sourceText, { tools }) {
   const parsed = sourceText.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
   if (!parsed) throw new Error("agent definition has no frontmatter block");
   const [, front, body] = parsed;
-  const carried = front
-    .split("\n")
-    .filter((line) => line.startsWith("name: ") || line.startsWith("description: "));
-  if (carried.length !== 2) {
-    throw new Error(
-      `agent frontmatter needs one name and one description line, found ${carried.length}`,
-    );
-  }
+  const lines = front.split("\n");
+  const carried = ["name", "description"].map((key) => {
+    const matches = lines.filter((line) => line.startsWith(`${key}: `));
+    if (matches.length !== 1) {
+      throw new Error(`agent frontmatter needs exactly one ${key} line, found ${matches.length}`);
+    }
+    return matches[0];
+  });
   return ["---", ...carried, `tools: ${tools}`, ...PI_AGENT_KEYS, "---", body].join("\n");
 }
 
@@ -398,7 +398,15 @@ export function piModelNamesSection(models) {
 }
 
 // Pi reads the root package.json. A path typo there is silent (the package
-// installs, the extension or the agents just never load), so check every one.
+// installs, the extension or the agents just never load), and so is a dropped
+// key (the generator keeps stamping files Pi never reads), so require every
+// output the generator writes to be declared and every declared path to exist.
+export const PI_MANIFEST_OUTPUTS = [
+  ["extensions", "./plugins/pstack/.pi-plugin/extensions/pstack.ts"],
+  ["prompts", "./plugins/pstack/.pi-plugin/prompts"],
+  ["subagents.agents", "./plugins/pstack/.pi-plugin/agents"],
+];
+
 export function validatePiManifest(text, { pathExists }) {
   const manifest = JSON.parse(text);
   if (!(manifest.keywords ?? []).includes("pi-package")) {
@@ -413,12 +421,13 @@ export function validatePiManifest(text, { pathExists }) {
         `found ${JSON.stringify(skills)}`,
     );
   }
-  const declared = [
-    ...(pi.extensions ?? []),
-    ...(pi.prompts ?? []),
-    ...skills,
-    ...(pi.subagents?.agents ?? []),
-  ];
+  const entries = (key) => (key === "subagents.agents" ? pi.subagents?.agents : pi[key]) ?? [];
+  for (const [key, output] of PI_MANIFEST_OUTPUTS) {
+    if (!entries(key).includes(output)) {
+      throw new Error(`package.json: "pi.${key}" must list ${output}, which the generator writes`);
+    }
+  }
+  const declared = [...skills, ...PI_MANIFEST_OUTPUTS.flatMap(([key]) => entries(key))];
   const missing = declared.filter((path) => !pathExists(path));
   if (missing.length) {
     throw new Error(`package.json: "pi" paths that do not exist: ${missing.join(", ")}`);
@@ -641,8 +650,8 @@ function main() {
   }
   const expectedPiAgents = new Set(PI_AGENTS.map((a) => basename(a.source)));
   for (const file of readdirSync(piAgentsDir)) {
-    if (expectedPiAgents.has(file)) continue;
-    rmSync(join(piAgentsDir, file), { recursive: true, force: true });
+    if (!file.endsWith(".md") || expectedPiAgents.has(file)) continue;
+    unlinkSync(join(piAgentsDir, file));
     console.log(`removed orphan: .pi-plugin/agents/${file}`);
   }
   if (piAgentsChanged === 0) console.log(`ok: ${PI_AGENTS.length} Pi agent definitions current`);

@@ -29,16 +29,16 @@ pi install git:github.com/michael-denyer/pstack-claude
 
 That one command installs the 52 skills, 31 `/name` prompt templates, the routing extension, and two pi-subagents agent definitions (`poteto-agent` and `comment-sicko`).
 
-Four companion packages supply the primitives the skills assume. Each source needs its own `pi install`:
+Three companion packages supply the primitives the skills assume, and a fourth adds web access. Each source needs its own `pi install`:
 
 ```shell
 pi install npm:pi-subagents           # parallel, model-diverse, worktree-isolated children
 pi install npm:pi-mcp-adapter         # MCP discovery and execution behind one gateway tool
 pi install npm:pi-background-tasks    # long commands with completion notifications
-pi install npm:pi-claude-marketplace  # optional bridge install of Claude plugins
+pi install npm:pi-web-access          # fetch_content and web_search for web evidence
 ```
 
-Without `pi-subagents` the fan-out skills run as one sequential pass. Without `pi-mcp-adapter` the external evidence lanes in `why` report as gaps. Without `pi-background-tasks` long commands run in the foreground. `pi-claude-marketplace` is only for the fallback bridge install described in [Running on Pi](#running-on-pi).
+Without `pi-subagents` the fan-out skills run as one sequential pass. Without `pi-mcp-adapter` the external evidence lanes in `why` report as gaps. Without `pi-background-tasks` long commands run in the foreground. Without `pi-web-access` the skills fetch with `curl` and report web evidence they could not gather as a gap. `pi-claude-marketplace` is separate and only for the fallback bridge install described in [Running on Pi](#running-on-pi).
 
 The extension appends the routing mandate to the system prompt on every turn. Nothing is written to `AGENTS.md`, so there is no file of yours to edit. Pi rebuilds the system prompt per turn, so the mandate survives compaction, and the extension registers nothing when `PI_SUBAGENT_CHILD=1`, so dispatched children stay exempt. To opt out, disable the extension in `pi config`, or list no extensions in the settings object form:
 
@@ -190,7 +190,7 @@ The Pi build uses the same `skills/` tree again. The root `package.json` is its 
 
 `pi-claude-marketplace` can import this plugin from the Claude Code marketplace instead of installing the native package. It is a fallback, not the supported path. pstack's `SessionStart` matcher includes `clear|compact`, which the bridge cannot map, so a bridge install needs `--partial` and arrives without the auto-fire.
 
-Verified on Pi 0.84.4 with the package loaded through `pi -e`: the mandate is present in the system prompt, `poteto-mode` and a `principle-*` leaf are listed as skills, a session started with `PI_SUBAGENT_CHILD=1` gets no mandate, and `subagent({ agent: "comment-sicko" })` resolves the package-shipped agent and returns its output. `pi install git:...` itself was not run.
+Verified on Pi 0.84.4 with the package loaded through `pi -e`: the mandate is present in the system prompt, `poteto-mode` and a `principle-*` leaf are listed as skills, a session started with `PI_SUBAGENT_CHILD=1` gets no mandate, the `/bro` prompt template expands to its skill instruction, and `subagent({ agent: "comment-sicko" })` resolves the package-shipped agent and returns its output. `pi install git:...` itself was not run.
 
 ## CI
 
@@ -227,12 +227,13 @@ Not declared as deps, but referenced in skill bodies:
 - **`gt` (Graphite CLI)** — only for the stack playbooks (Shipping, Orchestrate, the autopilots). Everything else works without it.
 - **`jq` and `rg` (ripgrep)** — only for `scripts/worktree-audit.sh` (the Worktree cleanup playbook). Without them the audit still runs but blanks its PR and LAST_CHAT columns, so it warns on stderr rather than returning a table that looks complete.
 
-On Pi, four companion packages carry primitives the skills assume. Install them with `pi install` (see [Install on Pi](#pi)):
+On Pi, three companion packages carry primitives the skills assume, and one more adds web access. Install them with `pi install` (see [Install on Pi](#pi)):
 
 - **`pi-subagents`.** The `subagent` tool, plus worktrees, retained children, and missions. Without it `interrogate`, `arena`, `how`, `why`, `reflect`, `architect`, and `swarm` degrade to a single sequential pass.
 - **`pi-mcp-adapter`.** The `mcp` gateway tool. Without it the external evidence lanes in `why` report as gaps.
 - **`pi-background-tasks`.** `bg_run` and its completion notifications, which stand in for Claude's `loop` in `babysit`.
-- **`pi-claude-marketplace`.** Optional, and only for the fallback bridge install of the Claude plugin.
+- **`pi-web-access`.** `fetch_content` and `web_search`. Without it the skills fetch with `curl` and report web evidence as a gap.
+- **`pi-claude-marketplace`.** Not a companion. Only for the fallback bridge install of the Claude plugin.
 
 No third-party plugins. The harsher-critique escape hatch lives in the bundled `thermo-nuclear-code-quality-review` skill (imported from cursor-team-kit), not in an external plugin.
 
