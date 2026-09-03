@@ -1,6 +1,6 @@
 # Pi compatibility audit for pstack
 
-Status: documentation and capability audit only. `AGENTS.md` was not created or modified.
+Status: this audit preceded the 0.9.19 native Pi package and describes the port as it stood before that work. It was a documentation and capability audit only; `AGENTS.md` was not created or modified. For how pstack installs and runs on Pi now, read [Running on Pi](../README.md#running-on-pi). The findings below are kept as the reasoning behind the package.
 
 ## Executive conclusion
 

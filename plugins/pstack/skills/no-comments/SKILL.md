@@ -10,7 +10,7 @@ Spawn comment-sicko. Act on accepted findings.
 
 Authoring agents defend comments. Defer to comment-sicko's fresh perspective.
 
-**Platform note.** On Codex, the `comment-sicko` subagent and the Claude tool names below are Claude defaults. Resolve them via [`codex-tools.md`](../poteto-mode/references/codex-tools.md).
+**Platform note.** On Codex, the `comment-sicko` subagent and the Claude tool names below are Claude defaults. Resolve them via [`codex-tools.md`](../poteto-mode/references/codex-tools.md). On Pi, resolve the same names via [`pi-tools.md`](../poteto-mode/references/pi-tools.md).
 
 ## Scope
 
