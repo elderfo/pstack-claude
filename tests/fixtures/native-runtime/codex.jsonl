@@ -1,0 +1,8 @@
+{"type": "session_meta", "payload": {"id": "fixture-codex", "cwd": "/fixture/work", "source": {"subagent": {"parent_thread_id": "parent"}}}}
+{"type": "event_msg", "payload": {"type": "user_message", "message": "Review fixture"}}
+{"type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "Review fixture"}]}}
+{"type": "response_item", "payload": {"type": "function_call", "call_id": "call-1", "name": "shell", "arguments": "{\"command\":\"cat fixture.ts\"}"}}
+{"type": "response_item", "payload": {"type": "function_call_output", "call_id": "call-1", "output": "fixture contents"}}
+{"type": "event_msg", "payload": {"type": "agent_message", "message": "duplicate transport summary"}}
+{"type": "compacted", "payload": {"message": "summary only"}}
+{"type": "turn_context", "payload": {"cwd": "/fixture/work"}}

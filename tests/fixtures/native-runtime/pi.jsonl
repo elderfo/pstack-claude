@@ -1,0 +1,8 @@
+{"type": "session", "version": 3, "id": "fixture-pi", "cwd": "/fixture/work", "parentSession": "/unrelated/private/never-open.jsonl"}
+{"type": "message", "id": "u", "parentId": null, "message": {"role": "user", "content": "Review fixture"}}
+{"type": "message", "id": "a", "parentId": "u", "message": {"role": "assistant", "content": [{"type": "toolCall", "id": "call-1", "name": "read", "arguments": {"path": "fixture.ts"}}]}}
+{"type": "message", "id": "t", "parentId": "a", "message": {"role": "toolResult", "toolCallId": "call-1", "content": [{"type": "text", "text": "fixture contents"}]}}
+{"type": "message", "id": "abandoned", "parentId": "t", "message": {"role": "assistant", "content": [{"type": "text", "text": "abandoned alternative"}]}}
+{"type": "compaction", "id": "c", "parentId": "t", "summary": "fixture summary", "retainedTail": [{"role": "user", "content": "keep this"}]}
+{"type": "branch_summary", "id": "b", "parentId": "c", "fromId": "abandoned", "summary": "alternative summary"}
+{"type": "message", "id": "tip", "parentId": "b", "message": {"role": "assistant", "content": [{"type": "text", "text": "selected branch"}]}}

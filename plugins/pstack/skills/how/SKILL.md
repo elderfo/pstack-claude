@@ -8,7 +8,7 @@ menu-description: walk through how a subsystem works
 
 Explore the codebase to answer "how does X work?" questions. Produce clear architectural explanations at the level of a senior engineer onboarding onto a subsystem. Enough to build a working mental model, not annotated source code.
 
-**Platform note.** On Codex, the Claude tool names and `claude-*` slugs named below are Claude defaults. Resolve them via [`codex-tools.md`](../poteto-mode/references/codex-tools.md). On Pi, resolve the same names via [`pi-tools.md`](../poteto-mode/references/pi-tools.md).
+Read the [runtime contract](../poteto-mode/references/runtime-contract.md) before delegating work.
 
 Two modes:
 
@@ -45,11 +45,11 @@ Decompose the question into 2-4 parallel exploration angles, each a distinct sli
 
 The right decomposition depends on the question. Use your judgment. Narrow questions: 2 explorers is fine. Broad subsystems: up to 4.
 
-Spawn all explorers in a single message:
+Delegate all explorers as one concurrent group:
 
-- `subagent_type`: `general-purpose`
-- `model`: your configured how-explorer model (default in [Models](#models))
-- `readonly`: `true`
+- Profile: `general`.
+- Model role: configured `how explorer` value, or the default in [Models](#models).
+- Access: read-only.
 
 Each explorer gets the same base prompt from `references/explorer-prompt.md` plus a specific exploration angle naming its slice. Each explorer should:
 - Start broad: Glob for relevant directories, Grep for key types/interfaces/class names
@@ -64,11 +64,11 @@ Then proceed to Step 3.
 
 ### Step 2b. Direct Explain (simple questions)
 
-Spawn a single Task subagent that explores and explains in one pass:
+Delegate one child that explores and explains in one pass:
 
-- `subagent_type`: `general-purpose`
-- `model`: your configured how-explainer model (default in [Models](#models))
-- `readonly`: `true`
+- Profile: `general`.
+- Model role: configured `how explainer` value, or the default in [Models](#models).
+- Access: read-only.
 
 The agent does its own exploration (Glob, Grep, Read) and writes the explanation directly. Read `references/explainer-prompt.md` for the communication style and output format. Same structure, just no explorer findings as input.
 
@@ -76,11 +76,11 @@ Proceed to Step 4.
 
 ### Step 3. Synthesize (complex questions only)
 
-Once all explorers return, spawn a single Task subagent to synthesize their findings into one coherent explanation:
+Once all explorers return, delegate one child to synthesize their findings into one coherent explanation:
 
-- `subagent_type`: `general-purpose`
-- `model`: your configured how-explainer model (default in [Models](#models))
-- `readonly`: `true`
+- Profile: `general`.
+- Model role: configured `how explainer` value, or the default in [Models](#models).
+- Access: read-only.
 
 The explainer gets all explorers' findings and writes the human-facing explanation (output format below). Read `references/explainer-prompt.md` for the full prompt template. The explainer reconciles overlapping findings, resolves contradictions, and weaves the slices into a unified picture.
 
@@ -115,9 +115,9 @@ Run the full explain flow above (Steps 1-4). You must understand the architectur
 After the explanation is complete, spawn one architectural critic per model in your configured how-critics list (defaults in [Models](#models)), all in a single message.
 
 For each critic:
-- `subagent_type`: `general-purpose`
-- `model`: one model from the configured how-critics list. These are minimum reasoning levels. The lead should escalate any model when the architecture warrants deeper analysis.
-- `readonly`: `true`
+- Profile: `general`.
+- Model role: one entry from the configured `how critics` list. These are minimum reasoning levels. Escalate when the architecture needs deeper analysis.
+- Access: read-only.
 
 Read `references/critic-prompt.md` for the prompt template. Each critic gets:
 1. The explanation from Step 1 (so they don't re-explore)
@@ -138,8 +138,8 @@ Present the explanation first (from Step 1), then the critique verdict below it.
 
 ## Models
 
-Role defaults, stamped from `plugins/pstack/models.json` (edit there, rerun `tools/generate.mjs`). A matching role line in `~/.claude/pstack-models.md` overrides each at runtime; see `/setup-pstack`.
+Runtime-neutral model profiles, stamped from `plugins/pstack/models.json`. Resolve each profile through the active runtime adapter. A matching role in the runtime model override sheet wins; see `/setup-pstack`.
 
-- how explorer: `claude-opus-5`
-- how explainer: `claude-opus-5`
-- how critics: `claude-opus-5`, `claude-fable-5`, `claude-sonnet-5`
+- how explorer: `primary`
+- how explainer: `primary`
+- how critics: `primary`, `strongest`, `balanced`
