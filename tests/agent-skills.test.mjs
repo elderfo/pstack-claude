@@ -4,7 +4,9 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -20,7 +22,9 @@ import {
   PORTABLE_ASSETS,
   promptStub,
   publicSkills,
+  runtimeSpecificSkillProse,
   syncPortableAssets,
+  validateModelPolicy,
   validatePiManifest,
 } from "../tools/generate.mjs";
 import { validateProsePaths, validateSkillsTree } from "../tools/validate-skills.mjs";
@@ -77,6 +81,48 @@ describe("shared Agent Skills tree", () => {
 
   test("no skill tells the reader to open a plugin path outside the tree", () => {
     expect(() => validateProsePaths(skillsDir)).not.toThrow();
+  });
+
+  test("shared skill prose contains no runtime-specific API or config language", () => {
+    const problems = [];
+    const walk = (dir) => {
+      for (const entry of readdirSync(dir)) {
+        const path = join(dir, entry);
+        if (statSync(path).isDirectory()) walk(path);
+        else if (entry.endsWith(".md")) {
+          problems.push(
+            ...runtimeSpecificSkillProse(
+              path.slice(skillsDir.length + 1),
+              readFileSync(path, "utf8"),
+              JSON.parse(readFileSync(join(repoRoot, "plugins/pstack/models.json"), "utf8")),
+            ),
+          );
+        }
+      }
+    };
+    walk(skillsDir);
+    expect(problems).toEqual([]);
+    expect(runtimeSpecificSkillProse("example/SKILL.md", "Use `Agent` with subagent_type.")).not.toEqual([]);
+    expect(runtimeSpecificSkillProse("example/SKILL.md", "Use gpt-5.4.")).not.toEqual([]);
+    expect(runtimeSpecificSkillProse("example/SKILL.md", "Keep it under /loop.")).not.toEqual([]);
+    expect(runtimeSpecificSkillProse("example/SKILL.md", "Use the `verify` skill.")).not.toEqual([]);
+    expect(runtimeSpecificSkillProse("example/SKILL.md", "Set disable-model-invocation.")).not.toEqual([]);
+    expect(runtimeSpecificSkillProse("example/SKILL.md", "Read the current-workspace transcript from `*.jsonl`.")).not.toEqual([]);
+    expect(runtimeSpecificSkillProse("poteto-mode/references/claude-tools.md", "Use `Agent`.", JSON.parse(readFileSync(join(repoRoot, "plugins/pstack/models.json"), "utf8")))).toEqual([]);
+  });
+
+  test("model roles and references validate across all three runtimes", () => {
+    const models = JSON.parse(readFileSync(join(repoRoot, "plugins/pstack/models.json"), "utf8"));
+    expect(() => validateModelPolicy(models)).not.toThrow();
+    expect(() =>
+      validateModelPolicy({
+        ...models,
+        roles: [{ role: "broken", skill: "how", models: ["missing"] }],
+      }),
+    ).toThrow('unknown profile "missing"');
+    const incomplete = structuredClone(models);
+    delete incomplete.runtimes.claude.profiles.primary;
+    expect(() => validateModelPolicy(incomplete)).toThrow('claude adapter does not resolve "primary"');
   });
 
   test("a backticked plugin path in prose fails the boundary check", () => {
@@ -211,7 +257,6 @@ describe("shared Agent Skills tree", () => {
       expect(front[1]).toBe(sourceFront.split("\n").find((l) => l.startsWith("description: ")));
       expect(front.slice(2)).toEqual([
         `tools: ${agent.tools}`,
-        "thinking: high",
         "inheritProjectContext: true",
         "inheritSkills: true",
       ]);
@@ -219,11 +264,12 @@ describe("shared Agent Skills tree", () => {
     }
   });
 
-  test("the report-only Pi agent gets no write tools", () => {
+  test("the report-only Pi allowlist omits edit/write but retains mutation-capable bash", () => {
     const sicko = PI_AGENTS.find((a) => a.source.endsWith("comment-sicko.md"));
     const tools = sicko.tools.split(", ");
     expect(tools).not.toContain("edit");
     expect(tools).not.toContain("write");
+    expect(tools).toContain("bash");
   });
 
   test("the committed root manifest satisfies the Pi package contract", () => {
@@ -385,7 +431,7 @@ describe("shared Agent Skills tree", () => {
       const poteto = join(installed, "poteto-mode");
       expect(readFileSync(join(poteto, "SKILL.md"), "utf8")).toContain("# Poteto mode");
       expect(readFileSync(join(poteto, "references", "codex-tools.md"), "utf8")).toContain(
-        "# Codex tool mapping for pstack",
+        "# Codex adapter for pstack",
       );
       expect(
         readFileSync(join(poteto, "..", "principle-model-the-domain", "SKILL.md"), "utf8"),
@@ -394,4 +440,78 @@ describe("shared Agent Skills tree", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+});
+
+test("Windows-shaped skill paths preserve adapter validation and license classification", () => {
+  const models = JSON.parse(readFileSync(join(repoRoot, "plugins/pstack/models.json"), "utf8"));
+  for (const runtime of ["claude", "codex", "pi"]) {
+    const path = `poteto-mode\\references\\${runtime}-tools.md`;
+    expect(runtimeSpecificSkillProse(path, "Use `Agent`.", models)).toEqual([]);
+    expect(runtimeSpecificSkillProse(path, "Use `gpt-999`.", models)).toHaveLength(1);
+    expect(runtimeSpecificSkillProse(path, "Use `gpt-999`.", models)[0]).toContain("undeclared model reference");
+  }
+  expect(runtimeSpecificSkillProse("poteto-mode\\references\\licenses\\NOTICE.md", "Claude Code gpt-999", models)).toEqual([]);
+  expect(runtimeSpecificSkillProse("example\\SKILL.md", "Use `Agent`.", models)).not.toEqual([]);
+});
+
+test("unquoted loop skill is runtime-specific shared prose", () => {
+  expect(runtimeSpecificSkillProse("example/SKILL.md", "Arm it via the loop skill.")).not.toEqual([]);
+});
+
+for (const runtime of ["claude", "codex", "pi"]) {
+  test(`${runtime} adapter rejects model drift outside generated sections`, () => {
+    const models = JSON.parse(readFileSync(join(repoRoot, "plugins/pstack/models.json"), "utf8"));
+    const path = `poteto-mode/references/${runtime}-tools.md`;
+    for (const id of ["claude-sonnet-999", "gpt-999", "google/gemini-999", "openai/unknown-model-999"]) {
+      expect(runtimeSpecificSkillProse(path, `## Native instructions\nUse \`${id}\`.`, models)).not.toEqual([]);
+    }
+  });
+}
+
+for (const [runtime, model] of [["claude", "claude-opus-5"], ["codex", "gpt-6-astra"], ["pi", "openai/gpt-6-astra"]]) {
+  for (const suffix of ["42", "high2", "high_extra", "high-extra", "high:low", ""]) {
+    test(`${runtime} adapter rejects the complete model token ${model}:${suffix}`, () => {
+      const models = JSON.parse(readFileSync(join(repoRoot, "plugins/pstack/models.json"), "utf8"));
+      const problems = runtimeSpecificSkillProse(`poteto-mode/references/${runtime}-tools.md`, `Use \`${model}:${suffix}\`.`, models);
+      expect(problems).toHaveLength(1);
+      expect(problems[0]).toContain(`undeclared model reference ${model}:${suffix}:`);
+    });
+  }
+}
+
+for (const [runtime, warning, model] of [
+  ["codex", "GPT-5.4 retired from Codex ChatGPT sign-in.", "gpt-5.4"],
+  ["pi", "Catalog entries, including `anthropic/claude-fable-5-1`, `openai/gpt-6-astra`, and `openai-codex/gpt-6-astra`, do not prove account access.", "openai-codex/gpt-6-astra"],
+]) {
+  test(`${runtime} adapter exempts only the explanatory model occurrence`, () => {
+    const models = JSON.parse(readFileSync(join(repoRoot, "plugins/pstack/models.json"), "utf8"));
+    const check = (text) => runtimeSpecificSkillProse(`poteto-mode/references/${runtime}-tools.md`, text, models);
+    expect(check(warning)).toEqual([]);
+    expect(check(`${warning} Dispatch with \`${model}\`.`)).toHaveLength(1);
+    expect(check(`Dispatch with \`${model}\`. ${warning}`)).toHaveLength(1);
+    expect(check(`${warning} Dispatch with \`${model}\` and \`${model}\`.`)).toHaveLength(2);
+  });
+}
+
+test("adapter checks allow declared models and native effort syntax without exempting files or headings", () => {
+  const models = JSON.parse(readFileSync(join(repoRoot, "plugins/pstack/models.json"), "utf8"));
+  const check = (runtime, text, policy = models) => runtimeSpecificSkillProse(`poteto-mode/references/${runtime}-tools.md`, text, policy);
+  expect(check("claude", 'Use `Agent`, model: "claude-opus-5", with agent frontmatter `effort: high`.')).toEqual([]);
+  expect(check("codex", 'Use `spawn_agent`, model = "gpt-6-astra", model_reasoning_effort = "high".')).toEqual([]);
+  expect(check("pi", 'Use `openai/gpt-6-astra:low` or `anthropic/claude-fable-5-1:max`; `provider/model:high` describes syntax.')).toEqual([]);
+  for (const runtime of ["claude", "codex", "pi"]) {
+    const adapter = readFileSync(join(skillsDir, `poteto-mode/references/${runtime}-tools.md`), "utf8");
+    expect(check(runtime, adapter)).toEqual([]);
+    expect(check(runtime, adapter + "\n## Models\nUse `gpt-999`.\n")).not.toEqual([]);
+    expect(check(runtime, "## Model names\nUse `claude-sonnet-999`.\n")).not.toEqual([]);
+  }
+  expect(check("codex", 'Use `gpt-6-astra:high`.')).not.toEqual([]);
+  expect(check("pi", 'Use `openai/gpt-6-astra:unlimited`.')).not.toEqual([]);
+  expect(check("codex", 'Use `gpt-5.4`.')).not.toEqual([]);
+  expect(check("pi", 'Use `openai-codex/gpt-6-astra`.')).not.toEqual([]);
+  const changed = structuredClone(models);
+  changed.runtimes.codex.singleRoleExample = "gpt-new";
+  changed.runtimes.codex.panel = ["gpt-new"];
+  expect(check("codex", 'Use `gpt-6-astra`.', changed)).not.toEqual([]);
+  expect(runtimeSpecificSkillProse("poteto-mode/references/licenses/NOTICE.md", "claude-sonnet-999 gpt-999")).toEqual([]);
 });

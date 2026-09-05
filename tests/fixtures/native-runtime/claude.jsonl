@@ -1,0 +1,5 @@
+{"type": "system", "subtype": "init"}
+{"type": "user", "uuid": "u", "parentUuid": null, "sessionId": "fixture-claude", "cwd": "/fixture/work", "message": {"role": "user", "content": "Review fixture"}}
+{"type": "assistant", "uuid": "a", "parentUuid": "u", "sessionId": "fixture-claude", "cwd": "/fixture/work", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "call-1", "name": "Read", "input": {"file_path": "fixture.ts"}}]}}
+{"type": "user", "uuid": "t", "parentUuid": "a", "sessionId": "fixture-claude", "cwd": "/fixture/work", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "call-1", "content": "fixture contents"}]}}
+{"type": "system", "subtype": "compact_boundary", "compactMetadata": {"trigger": "manual"}}

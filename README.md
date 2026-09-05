@@ -4,7 +4,7 @@ Claude Code port of [poteto](https://x.com/poteto)'s [pstack](https://github.com
 
 > if you want to go fast, go deep first. pstack helps you write less, but higher quality code. rigorous agent workflows you can parallelize with confidence.
 
-This is not a verbatim copy. Skill bodies have been edited so every Cursor-specific primitive resolves to its Claude Code equivalent — see [Differences from upstream](#differences-from-upstream) for the full list. The exhaustive per-skill audit lives in [CHANGES.md](CHANGES.md); license attribution and the upstream pins live in [NOTICE.md](NOTICE.md) and `tools/upstream.json`.
+This is not a verbatim copy. Skill bodies use one runtime-neutral contract; Claude, Codex and Pi adapters own native execution details — see [Differences from upstream](#differences-from-upstream) for the full list. The exhaustive per-skill audit lives in [CHANGES.md](CHANGES.md); license attribution and the upstream pins live in [NOTICE.md](NOTICE.md) and `tools/upstream.json`.
 
 ## Install
 
@@ -38,7 +38,7 @@ pi install npm:pi-background-tasks    # long commands with completion notificati
 pi install npm:pi-web-access          # fetch_content and web_search for web evidence
 ```
 
-Without `pi-subagents` the fan-out skills run as one sequential pass. Without `pi-mcp-adapter` the external evidence lanes in `why` report as gaps. Without `pi-background-tasks` long commands run in the foreground. Without `pi-web-access` the skills fetch with `curl` and report web evidence they could not gather as a gap. `pi-claude-marketplace` is separate and only for the fallback bridge install described in [Running on Pi](#running-on-pi).
+Without `pi-subagents`, disclose that independent fan-out is unavailable; obtain approval for any sequential reduction. Without `pi-mcp-adapter` the external evidence lanes in `why` report as gaps. Without `pi-background-tasks`, use only bounded shell checks allowed by the workflow; do not silently switch governed agent lanes to foreground on failure. Without `pi-web-access` the skills fetch with `curl` and report web evidence they could not gather as a gap. `pi-claude-marketplace` is separate and only for the fallback bridge install described in [Running on Pi](#running-on-pi).
 
 The extension appends the routing mandate to the system prompt on every turn. Nothing is written to `AGENTS.md`, so there is no file of yours to edit. Pi rebuilds the system prompt per turn, so the mandate survives compaction, and the extension registers nothing when `PI_SUBAGENT_CHILD=1`, so dispatched children stay exempt. To opt out, disable the extension in `pi config`, or list no extensions in the settings object form:
 
@@ -77,14 +77,11 @@ Three plugin features do not survive a skills-only install, because they belong 
 
 ### Codex
 
-The same plugin carries a `.codex-plugin/plugin.json` manifest and a root `.agents/plugins/marketplace.json`. Use the [shared Agent Skills install](#shared-agent-skills-install). This path is verified on a live Codex session.
+The plugin carries a `.codex-plugin/plugin.json` manifest in the current shared Codex/ChatGPT plugin format and a root `.agents/plugins/marketplace.json`. Use the [shared Agent Skills install](#shared-agent-skills-install) or the client's supported plugin installer. Confirm names in the current skill picker; namespace behavior can depend on install mode and client.
 
-Codex discovers the linked skills and namespaces them under the plugin, so they list as `pstack:poteto-mode`, `pstack:tdd`, and so on. The namespace comes from `plugins/pstack/.codex-plugin/plugin.json` and resolves through the flat symlinks, even though each linked skill sits one directory below that manifest (verified on a live session via this symlink install). To enable the multi-model and parallel-subagent skills (`interrogate`, `arena`, `how`, `why`, `reflect`, `architect`), turn on subagents in `~/.codex/config.toml`:
+Current Codex releases enable subagents by default. `[agents]` controls concurrency/depth, and project/user `.codex/agents/*.toml` supports native profiles with `name`, `description`, `developer_instructions`, `model`, `model_reasoning_effort`, and `sandbox_mode`. Do not add a legacy `features.multi_agent` flag as a prerequisite. The generator provides optional `.codex-plugin/agent-templates/*.toml`; copy them into the desired native agent directory only with approval, then verify discovery. They do not pin a model or effort. Template presence does not prove plugin auto-registration.
 
-```toml
-[features]
-multi_agent = true
-```
+Codex supports plugin hooks. This manifest explicitly selects `.codex-plugin/hooks.json`, an empty Codex hook set, instead of auto-loading the Claude-owned `hooks/hooks.json`. There is no Codex auto-fire mandate in this package, by choice. Local Codex and ChatGPT desktop installation/access depend on client and workspace permissions; ChatGPT web/Work is a separate availability/policy surface. A shared manifest does not grant web sessions local files, a shell, or account access. The revised runtime behavior has not been live-smoked in this change.
 
 For slash-command shortcuts (`/poteto-mode`, `/tdd`, and the rest), link the command files into Codex's prompts directory:
 
@@ -93,7 +90,7 @@ mkdir -p ~/.codex/prompts
 for c in plugins/pstack/.codex-plugin/prompts/*.md; do ln -s "$PWD/$c" ~/.codex/prompts/"$(basename "$c")"; done
 ```
 
-Each command invokes its skill, so `/tdd` runs the `tdd` skill. Installing the full plugin through the Codex marketplace (the root `.agents/plugins/marketplace.json`) carries skills and commands together. The skill links plus prompt links are the verified local path. Teardown for a prompt is `rm ~/.codex/prompts/<name>.md`.
+Each command invokes its skill, so `/tdd` runs the `tdd` skill. Installing the full plugin through the Codex marketplace (the root `.agents/plugins/marketplace.json`) carries skills and commands together. Skill links plus optional legacy prompt links are a local installation path; confirm shortcut support in your current client. Teardown for a prompt is `rm ~/.codex/prompts/<name>.md`.
 
 ### Prime Agent
 
@@ -107,7 +104,7 @@ Unverified relative to Codex: the Prime path is derived from Prime's documented 
 
 [opencode](https://opencode.ai/docs/skills) loads Agent Skills from `~/.agents/skills/` as well as its own `~/.config/opencode/skills/` directory. Use the [shared Agent Skills install](#shared-agent-skills-install). There is nothing to generate.
 
-opencode ignores the pstack-specific `user-invocable: false` key, so its picker lists the 21 `principle-*` leaves alongside the 31 public workflows. Codex and Claude Code hide the leaves. Keep them linked because `poteto-mode` cites them by name and expects to read each one.
+opencode ignores the pstack-specific `user-invocable: false` key, so its picker lists the 21 `principle-*` leaves alongside the 31 public workflows. Claude Code hides the leaves from its user menu; other clients’ picker behavior varies. Keep them linked because `poteto-mode` cites them by name and expects to read each one.
 
 The opencode path is verified on a live opencode 1.18.25 session. It discovers all 31 public skills through the links and reads a linked `SKILL.md` on request. Agents, commands, and permissions are configured in `opencode.json`.
 
@@ -117,7 +114,7 @@ The opencode path is verified on a live opencode 1.18.25 session. It discovers a
 
 The Gemini path follows published Gemini CLI documentation and has not been run on a live session. Neither Gemini CLI nor opencode gets generated command files. Native discovery keeps each `SKILL.md`, its references, and its scripts attached to one installed directory, so the skills work from the repository where the user actually needs them.
 
-Discovery is not a promise that Claude-specific execution details translate automatically. The skill bodies retain Claude Code tool names, `claude-*` model slugs, and Claude built-in skills. [`codex-tools.md`](plugins/pstack/skills/poteto-mode/references/codex-tools.md) maps those names on Codex only, and [`pi-tools.md`](plugins/pstack/skills/poteto-mode/references/pi-tools.md) does the same for Pi only. Gemini CLI, opencode, and Prime Agent must use their own tool, model, and configuration equivalents. Delegation-heavy and multi-model workflows remain unverified on those runtimes. None has a plugin-hook equivalent of the Claude Code auto-fire hook, so ask the runtime to use `poteto-mode` explicitly.
+Discovery is not a promise that every execution capability exists. The shared skill bodies use the runtime-neutral contract in [`runtime-contract.md`](plugins/pstack/skills/poteto-mode/references/runtime-contract.md). Claude, Codex, and Pi have explicit adapters. Gemini CLI, opencode, and Prime Agent must map the same capabilities to their own tools, models, locations, and scheduling behavior. Delegation-heavy and multi-model workflows remain unverified on those runtimes. None has a plugin-hook equivalent of the Claude Code auto-fire hook, so ask the runtime to use `poteto-mode` explicitly.
 
 ## Layout
 
@@ -131,8 +128,10 @@ Discovery is not a promise that Claude-specific execution details translate auto
 │   ├── .codex-plugin/plugin.json     # Codex manifest (skills: ./skills/)
 │   ├── skills/                       # 52 Agent Skills (shared by all six runtimes; the skills-only install boundary)
 │   │   ├── poteto-mode/references/licenses/  # generated license texts and skills-scoped notice
-│   │   ├── poteto-mode/references/codex-tools.md  # Claude→Codex tool/model/skill map
-│   │   ├── poteto-mode/references/pi-tools.md     # Claude→Pi tool/model/skill map
+│   │   ├── poteto-mode/references/runtime-contract.md # shared capability vocabulary
+│   │   ├── poteto-mode/references/claude-tools.md # Claude runtime adapter
+│   │   ├── poteto-mode/references/codex-tools.md  # Codex runtime adapter
+│   │   ├── poteto-mode/references/pi-tools.md     # Pi runtime adapter
 │   │   ├── poteto-mode/references/agents/  # generated copies of agents/, for runtimes that install only skills
 │   │   └── poteto-mode/scripts/      # vendored bun/bash tooling: watch-pr, orch, worktree-audit.sh
 │   ├── .codex-plugin/prompts/        # 31 slash command stubs, generated (Codex only; link into ~/.codex/prompts)
@@ -166,31 +165,32 @@ Plugin-internal path references in the docs below (`skills/<name>/`, `.codex-plu
 
 ## Running on Codex
 
-The Codex and Claude Code builds use the same `skills/` tree. Codex-specific generation adds prompt stubs from each skill's `menu-description` frontmatter. The shared generator also stamps manifest versions, model-policy sections, the README command table, and five portable assets. One mapping file handles the Claude-to-Codex translation, the same structure `superpowers` uses for Codex. pstack diverges in one respect. superpowers writes its skills in tool-neutral language, so no skill names a runtime tool. pstack keeps the upstream Claude-native prose and adds a one-line Platform note to each skill that names a Claude primitive, so the port stays in lockstep with upstream sync.
+The Codex and Claude Code builds use the same runtime-neutral `skills/` tree. Codex-specific generation adds prompt stubs from each skill's `menu-description` frontmatter. The shared generator also stamps manifest versions, model-policy sections, runtime adapter model mappings, the README command table, and portable assets. [`runtime-contract.md`](plugins/pstack/skills/poteto-mode/references/runtime-contract.md) defines the shared capabilities. [`codex-tools.md`](plugins/pstack/skills/poteto-mode/references/codex-tools.md) owns Codex API names, paths, and execution semantics.
 
 - **Skill invocation.** Codex loads `SKILL.md` natively. There is no `Skill` tool. You invoke a skill by name (ask for it, or pick `pstack:poteto-mode` from the list).
 - **Commands.** The 31 `.codex-plugin/prompts/*.md` files are Codex-only, generated by `tools/generate.mjs` from each public skill's `menu-description` frontmatter (edit the skill, rerun the generator; hand edits to a stub are overwritten). Codex reads their `description` frontmatter and the filename, ignores the keys it doesn't know, and each body invokes its skill. Link them into `~/.codex/prompts/` for `/name` shortcuts (see [Install on Codex](#codex)). Claude Code ships no `commands/` directory: it renders both commands and user-invocable skills in the slash menu, so a trampoline paired with its skill duplicated every `/pstack:<name>` row (see CHANGES 0.9.13). The skill alone serves the slash command there.
-- **Tool, model, and built-in mapping.** When a skill names a Claude tool (the `Agent` tool, `AskUserQuestion`), a `claude-*` model slug, or a Claude built-in skill (`run`, `verify`, `loop`, `plugin-dev:skill-development`), it resolves through [`skills/poteto-mode/references/codex-tools.md`](plugins/pstack/skills/poteto-mode/references/codex-tools.md). `poteto-mode` and every skill that names one of those carries a one-line **Platform note** pointing there.
-- **Subagents.** The `Agent` tool maps to Codex `spawn_agent` / `wait_agent` / `close_agent`, enabled by `multi_agent = true`. Parallel fan-out is multiple `spawn_agent` calls in one turn. Without the flag, `interrogate`, `arena`, `how`, `why`, `reflect`, and `architect` degrade to a single sequential pass. There is no `poteto-agent` subagent type on Codex; route ad-hoc subagents by dispatching a `spawn_agent` told to read `poteto-mode` first.
-- **Auto-fire.** The `hooks/` SessionStart injection is Claude Code-only; Codex has no plugin hook runtime. Enter `pstack:poteto-mode` by name, or add a standing instruction to `~/.codex/AGENTS.md` if you want the same always-on routing.
-- **Models.** The `claude-*` slugs in skills are Claude defaults, stamped into each skill's Models section from `plugins/pstack/models.json`. On Codex substitute your configured Codex models, keeping multi-model panels genuinely diverse. `/setup-pstack` writes `~/.codex/pstack-models.md` (referenced from `~/.codex/AGENTS.md`) with Codex slugs instead of `~/.claude/pstack-models.md`.
+- **Runtime mapping.** Shared skills name capabilities and symbolic model profiles. [`skills/poteto-mode/references/codex-tools.md`](plugins/pstack/skills/poteto-mode/references/codex-tools.md) maps them to Codex tools, paths, model IDs, and scheduling behavior.
+- **Subagents.** Use the discovered `spawn_agent` and wait/status tools. Select native profiles by capability or pass a portable agent prompt to a config-neutral discovered type. Per-agent config can override explicit spawn model/effort; the adapter requires a matching/neutral profile or disclosure of blocked inheritance. Never pass symbolic pstack model profiles as native IDs.
+- **Auto-fire.** The `hooks/` SessionStart injection is Claude-owned; Codex supports native hooks but explicitly loads this package’s empty Codex hook set. Enter `pstack:poteto-mode` by name, or add a standing instruction to `~/.codex/AGENTS.md` if you want the same always-on routing.
+- **Models.** Skills use the symbolic profiles `primary`, `strongest`, and `balanced`, stamped from `plugins/pstack/models.json`. Resolve them to models available in Codex and keep panels genuinely diverse. `/setup-pstack` writes concrete choices to `~/.codex/pstack-models.md`, loaded from `~/.codex/AGENTS.md`.
 
-Verified on a live Codex session installed via the symlinks: the user-facing skills are discovered and namespaced under `pstack` (`pstack:poteto-mode`, `pstack:interrogate`, and so on). The `principle-*` leaf skills carry `user-invocable: false` and no command, so Codex does not surface them in the picker, the same as Claude Code. They stay installed for `poteto-mode` to read by path. The deeper behaviors (mapping resolution mid-task, `spawn_agent` fan-out) follow the proven `superpowers` pattern and are worth confirming in your own session.
+Historical discovery observation from a prior live Codex session, not validation of this revision: the user-facing skills are discovered and namespaced under `pstack` (`pstack:poteto-mode`, `pstack:interrogate`, and so on). The `principle-*` leaf skills stay installed and model-reachable for `poteto-mode`; picker visibility depends on the client’s metadata support. The revised dispatch, model precedence, hook ownership and invocation policies still need native smoke testing; deterministic/static tests are not that evidence.
 
 ## Running on Pi
 
-The Pi build uses the same `skills/` tree again. The root `package.json` is its manifest, and Pi-specific generation adds one prompt template per public skill plus two pi-subagents agent definitions derived from `agents/`. Pi is the first ported runtime with a plugin lifecycle hook of its own, so the routing mandate that Claude Code injects from `hooks/` is injected here by an extension instead.
+The Pi build uses the same `skills/` tree again. The root `package.json` is its manifest, and Pi-specific generation adds one prompt template per public skill plus two pi-subagents agent definitions derived from `agents/`. Pi injects the routing mandate through its own extension, separate from the Claude hook and intentionally empty Codex hook set.
 
 - **Skill invocation.** Pi reads `SKILL.md` natively from the package's skills tree and registers each skill as `/skill:<name>`. There is no `Skill` tool. Ask for a skill by name, or type `/skill:poteto-mode` when you want to force the load.
 - **Commands.** The 31 `.pi-plugin/prompts/*.md` files are Pi-only, generated by `tools/generate.mjs` from each public skill's `menu-description` frontmatter (edit the skill, rerun the generator; hand edits to a template are overwritten). The filename is the command, so `tdd.md` serves `/tdd`, and each body tells the model to read that skill's `SKILL.md` in full and passes your arguments through. Pi's prompt discovery is not recursive, so every template sits directly in that one directory.
-- **Tool, model, and built-in mapping.** When a skill names a Claude tool (the `Skill` tool, the `Agent` tool, `AskUserQuestion`), a `claude-*` model slug, or a Claude built-in skill (`run`, `verify`, `loop`, `plugin-dev:skill-development`), it resolves through [`skills/poteto-mode/references/pi-tools.md`](plugins/pstack/skills/poteto-mode/references/pi-tools.md). `poteto-mode` and every skill that names one of those carries a one-line **Platform note** pointing there, next to the Codex one.
-- **Subagents.** The `Agent` tool maps to the `subagent` tool from `pi-subagents`. `subagent_type` becomes `agent`, `run_in_background: true` becomes `async: true`, and `isolation: "worktree"` becomes `worktree: true`. Parallel fan-out is a single `subagent({ workflowScript })` call whose script awaits `runs.all([...])`, not N separate dispatches. The package ships `poteto-agent` and `comment-sicko` as agent definitions, so both dispatch by name. A Pi model ID names its provider, so the multi-model panels in `arena`, `architect`, `interrogate`, and `how` can be genuinely cross-vendor when you have more than one provider configured. That is the diversity the Claude Code build lost in translation.
-- **Auto-fire.** `plugins/pstack/.pi-plugin/extensions/pstack.ts` appends the mandate to the system prompt on `before_agent_start`. The Claude Code build injects the same routing text from a `SessionStart` hook, which fires once and needs `clear|compact` matchers to survive a compaction. Pi rebuilds the system prompt for every turn, so the extension needs no matchers and cannot be compacted away. `/new`, `/resume`, and `/fork` reload extensions and the handler re-registers. Children dispatched through `pi-subagents` run with `PI_SUBAGENT_CHILD=1` and get no mandate, because `poteto-mode` governs the orchestrating session and has already shaped the dispatch.
-- **Models.** The `claude-*` slugs in skills are Claude defaults, stamped into each skill's Models section from `plugins/pstack/models.json`. With the `anthropic` provider configured they resolve as `anthropic/<slug>`. Run `pi --list-models anthropic` to see what your account reaches. `/setup-pstack` writes `~/.pi/agent/pstack-models.md` with `provider/model` IDs, and you load it by pasting its contents into `~/.pi/agent/AGENTS.md`.
+- **Runtime mapping.** Shared skills name capabilities and symbolic model profiles. [`skills/poteto-mode/references/pi-tools.md`](plugins/pstack/skills/poteto-mode/references/pi-tools.md) maps them to Pi tools, paths, model IDs, background work, and scheduling behavior.
+- **Subagents.** Preflight with `subagent({ action: "list", capabilities: true })` and inspect effective profiles. Use one top-level `subagent({ async: true, workflowScript })` for parallel work, and await `runs.all([...])` as an ordered array. Exact discovered package names resolve `poteto-agent` and `comment-sicko`; strict allowlists do not automatically inherit MCP or extension tools. `auto`/`inherit-parent` lower to `model: "inherit"` or a concrete current provider/model, not omission. Choose fresh/fork context deliberately and inspect retained children before respawning. Infrastructure failures stop the lane rather than authorizing CLI/foreground fallback.
+- **Background work.** Finite jobs complete by notification, not polling. Persistent services need bounded readiness inspection/health checks and owned teardown; `bg_logs` is allowed while running for readiness, explicit requests and concrete hangs, never repeated polling merely to wait.
+- **Auto-fire.** `plugins/pstack/.pi-plugin/extensions/pstack.ts` appends the mandate to the system prompt on `before_agent_start`. The Claude Code build injects the same routing text from a `SessionStart` hook, which fires once and needs `clear|compact` matchers to survive a compaction. Pi rebuilds the system prompt for every turn, so the extension needs no matchers and cannot be compacted away. The registered handler applies when the host starts an agent turn; session switching is not assumed to restart every extension or child. Children dispatched through `pi-subagents` run with `PI_SUBAGENT_CHILD=1` and get no mandate, because `poteto-mode` governs the orchestrating session and has already shaped the dispatch.
+- **Models.** Skills use the symbolic profiles `primary`, `strongest`, and `balanced`, stamped from `plugins/pstack/models.json`. Resolve them to configured Pi `provider/model` IDs and keep panels cross-provider when possible. `/setup-pstack` writes concrete choices to `~/.pi/agent/pstack-models.md`, and you load them from `~/.pi/agent/AGENTS.md`.
 
 `pi-claude-marketplace` can import this plugin from the Claude Code marketplace instead of installing the native package. It is a fallback, not the supported path. pstack's `SessionStart` matcher includes `clear|compact`, which the bridge cannot map, so a bridge install needs `--partial` and arrives without the auto-fire.
 
-Verified on Pi 0.84.4 with the package loaded through `pi -e`: the mandate is present in the system prompt, `poteto-mode` and a `principle-*` leaf are listed as skills, a session started with `PI_SUBAGENT_CHILD=1` gets no mandate, the `/bro` prompt template expands to its skill instruction, and `subagent({ agent: "comment-sicko" })` resolves the package-shipped agent and returns its output. `pi install git:...` itself was not run.
+Historical smoke on Pi 0.84.4, before these fixes, with the package loaded through `pi -e`: the mandate is present in the system prompt, `poteto-mode` and a `principle-*` leaf are listed as skills, a session started with `PI_SUBAGENT_CHILD=1` gets no mandate, the `/bro` prompt template expands to its skill instruction, and `subagent({ agent: "comment-sicko" })` resolves the package-shipped agent and returns its output. `pi install git:...` itself was not run. The new lowering, transcript parser and readiness rules have deterministic/static coverage, not a new live inference smoke.
 
 ## CI
 
@@ -221,15 +221,15 @@ Nothing is declared in `plugin.json`. Install the one companion plugin yourself:
 
 Not declared as deps, but referenced in skill bodies:
 
-- **`run`, `verify`, `loop`** — Claude Code CLI built-ins (ship with the binary, always available).
+- **`run`, `verify`, `loop`** — conditional Claude bundled skills. Discover visibility and invocation conditions before use; `Workflow`/`Monitor` may also be exposed. Use a supported shell/driver fallback when absent. Newer models may omit TodoWrite/Task* tools; preserve phase gates with available tools or prose/artifacts.
 - **`gh` CLI** — system-level requirement of the `babysit` skill and the Babysit / Shipping playbooks. Install via [`brew install gh`](https://cli.github.com) and authenticate with `gh auth login`.
 - **`bun`** — runs the vendored `skills/poteto-mode/scripts/` tooling (`watch-pr`, `orch`). Install via [`brew install oven-sh/bun/bun`](https://bun.sh). Only the playbooks that call those scripts need it; `bootstrap.ts` installs the script dependencies on first run.
 - **`gt` (Graphite CLI)** — only for the stack playbooks (Shipping, Orchestrate, the autopilots). Everything else works without it.
-- **`jq` and `rg` (ripgrep)** — only for `scripts/worktree-audit.sh` (the Worktree cleanup playbook). Without them the audit still runs but blanks its PR and LAST_CHAT columns, so it warns on stderr rather than returning a table that looks complete.
+- **`jq`** — used for the PR column of `scripts/worktree-audit.sh`. The script reads no transcripts and always reports `LAST_CHAT=unknown`; no unknown-activity row is safe to delete. Independently check active/pinned sessions and retained children, then obtain human deletion approval. `rg` is no longer a dependency of this audit.
 
 On Pi, three companion packages carry primitives the skills assume, and one more adds web access. Install them with `pi install` (see [Install on Pi](#pi)):
 
-- **`pi-subagents`.** The `subagent` tool, plus worktrees, retained children, and missions. Without it `interrogate`, `arena`, `how`, `why`, `reflect`, `architect`, and `swarm` degrade to a single sequential pass.
+- **`pi-subagents`.** The `subagent` tool, plus worktrees, retained children, and missions. Without it, report missing delegation and obtain approval before reducing independent fan-out to a sequential pass.
 - **`pi-mcp-adapter`.** The `mcp` gateway tool. Without it the external evidence lanes in `why` report as gaps.
 - **`pi-background-tasks`.** `bg_run` and its completion notifications, which stand in for Claude's `loop` in `babysit`.
 - **`pi-web-access`.** `fetch_content` and `web_search`. Without it the skills fetch with `curl` and report web evidence as a gap.
@@ -275,9 +275,9 @@ No third-party plugins. The harsher-critique escape hatch lives in the bundled `
 
 ## Subagents
 
-`poteto-agent` ships unchanged. Spawn from a parent with `subagent_type: "poteto-agent"`.
+`poteto-agent` supplies the implementation prompt. Resolve the actual registered native name through the active adapter, not a hardcoded bare dispatch ID.
 
-`comment-sicko` is the read-only comment reviewer the `no-comments` skill spawns. Upstream names it `Comment Sicko`; the port renames it to `comment-sicko` so the name is a valid `subagent_type`. Invoke it through `/no-comments`, not directly.
+`comment-sicko` proposes comment deletions; the `no-comments` parent reviews and applies accepted proposals, counting proposed and applied deletions separately. It is report-only by prompt, not a filesystem sandbox: the Pi profile retains mutation-capable `bash`. Upstream names it `Comment Sicko`; the port renames it to `comment-sicko` so the name is a valid `subagent_type`. Invoke it through `/no-comments`, not directly.
 
 ## Differences from upstream
 
@@ -296,37 +296,22 @@ The port is editorial, not mechanical. Anywhere upstream pstack assumed Cursor-s
 
 ### What's substituted in skill bodies
 
-| Upstream (Cursor) | This port (Claude Code) |
-| --- | --- |
-| `Task` tool, `subagent_type: generalPurpose`, `readonly: false/true` | `Agent` tool, `subagent_type: "general-purpose"`, no readonly flag (subagent_type controls MCP access) |
-| `AskQuestion` tool | `AskUserQuestion` tool |
-| Cursor's built-in `/loop` | Claude Code's built-in `loop` skill |
-| Cursor's built-in `/babysit` | `babysit` skill bundled in this plugin. From v0.14.0 upstream routes PR-status requests inside poteto-mode to `playbooks/babysit.md` instead; the port does the same, and `/babysit` stays the standalone entry point |
-| Cursor's built-in `/create-skill` | `plugin-dev:skill-development` skill |
-| `cursor-team-kit` `control-cli` (CLI/TUI driver) | Claude Code's `run` skill |
-| `cursor-team-kit` `control-ui` (browser/Electron driver) | Claude Code's `verify` skill |
-| Transcripts at `~/.cursor/projects/*/` or `agent-transcripts/` | `~/.claude/projects/<encoded-cwd>/*.jsonl` (where `<encoded-cwd>` is the workspace cwd with `/` → `-`) |
-| Skill paths `.cursor/skills/`, `~/.cursor/plugins/` | `.claude/skills/`, `~/.claude/plugins/` |
-| MCP discovery via Cursor's `mcps/` directory | Tool list at top of system prompt (`mcp__<server>__<name>` entries), or `.mcp.json`, or `claude mcp list` |
-| Cursor cloud agents (`environment: "cloud"`, `cloud_base_branch`) | Local background subagents (`run_in_background: true`), isolated by git worktree |
-| Cursor's `/goal` (standing objective across turns) | The program objective written into the run's standing orders and restated in the todolist |
-| The Cursor agent store (path in the system prompt) | `~/.claude/orchestrate/<project-slug>/`, which survives the session restarts a multi-day program expects |
-| Model rule `~/.cursor/rules/pstack-models.mdc` | Override sheet `~/.claude/pstack-models.md`, included from `CLAUDE.md` |
-| Model `composer-2.5-fast` (Cursor) | `claude-sonnet-4-6` |
-| Model `claude-opus-4-X-thinking-xhigh` (Cursor UI variant) | `claude-opus-5` (extended thinking configured separately) |
-| Models `gpt-5.3-codex-high-fast`, `gpt-5.5-high-fast` (via Cursor) | `claude-sonnet-4-6`, `claude-haiku-4-5` (Claude family) |
-| Multi-model panels (arena, architect, interrogate, how-critics) | Default panel is `claude-opus-5` + `claude-fable-5` + `claude-sonnet-5` — three distinct models across three tiers (replaces the cross-vendor diversity lost in translation). |
+Shared workflows now express capabilities through [`runtime-contract.md`](plugins/pstack/skills/poteto-mode/references/runtime-contract.md). Concrete tool fields, locations, schemas, invocation controls and model/effort/context lowering live in the three adapters. Runtime behavior is not inferred from skill discovery.
+
+- Claude `general` resolves to native `general-purpose`; named profiles use discovery.
+- Explicit-only authoring uses native Claude/Pi `disable-model-invocation: true` and Codex skill `agents/openai.yaml` policy. Internal principle skills stay model-reachable.
+- Transcript evidence uses the supplied explicit-file parser and exact cwd validation, never a user-wide search. It preserves raw tool evidence and reports branch/compaction limitations; it is not exact context replay or liveness detection.
+- Model roles remain symbolic in `models.json`. Concrete runtime examples are discovery hints, not account-access guarantees. Defaults resolve jointly to distinct models where possible, preserving deliberate duplicates and reporting reduced diversity. Model identity, reasoning effort and fresh/fork context are independent controls. Native Claude/Codex do not promise arbitrary cross-provider children; configured Pi can use them.
+- Current examples include Opus 5, Sonnet 5, Fable 5/5.1, GPT-6 Astra and GPT-5.6 Sol/Terra/Luna. GPT-5.4 retired from Codex ChatGPT sign-in August 31, 2026; API-key access is distinct. No example forces a model the user cannot access.
+- The workflow, approval and principle gates remain. Stronger/newer models do not remove them; absent phase tools use concise plan artifacts/prose instead.
 
 ### What's lost in translation
 
-**Cross-vendor model diversity.** `arena`, `interrogate`, `architect`, and `how` all rely on stress-testing a design against several *different* model families. Claude Code is single-vendor, so the split collapses to three Claude variants by tier. Instead of bridging to an external CLI for that diversity, the rewiring routes the "harsher pass" to the bundled `thermo-nuclear-code-quality-review` skill — different style of pressure (strict maintainability rubric), not vendor diversity, but it lives in-plugin with no extra installs.
+Native runtimes expose different tools, permission boundaries and model catalogs. A stricter review rubric or a cheaper model is not vendor diversity. Report reduced diversity and missing evidence instead of claiming equivalent execution. The bundled `thermo-nuclear-code-quality-review` supplies another review rubric, not another provider.
 
 ### What's deliberately kept
 
-- The `poteto-agent` subagent ID and all references to it.
-- `run_in_background: true` on Agent calls (Claude Code supports it).
-- `/loop`, `/deslop`, `/babysit` slash references in skill bodies — they all resolve in Claude Code now.
-- The principle/playbook structure and every word of the principles themselves.
+One shared skills tree, portable named-agent prompts, principle/playbook structure, explicit approvals, one writer per worktree, and parent-owned verification of child artifacts. Runtime adapters choose actual invocation and continuation mechanisms.
 
 ### What's deliberately not ported
 

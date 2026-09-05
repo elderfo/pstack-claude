@@ -14,18 +14,18 @@
 //     -> one prompt file per runtime adapter in PROMPT_ADAPTERS (Codex stubs in
 //        .codex-plugin/prompts/, Pi templates in .pi-plugin/prompts/)
 //     -> its row in README.md's "Slash commands" table
-//   plugins/pstack/models.json (the model policy: role defaults, diverse panel,
-//   available slugs, Codex and Pi equivalents)
+//   plugins/pstack/models.json (runtime-neutral role profiles plus concrete
+//   runtime resolutions)
 //     -> each model-consuming skill's "## Models" section
 //     -> setup-pstack's override-sheet block and interrogate's reviewer table
-//     -> the "## Model names" section of poteto-mode/references/codex-tools.md
-//        and of poteto-mode/references/pi-tools.md
+//     -> the "## Model names" section of each runtime adapter
 //   plugins/pstack/agents/{poteto-agent,comment-sicko}.md, LICENSE,
 //   LICENSE-cursor-team-kit, and NOTICE-skills.md
 //     -> portable copies under poteto-mode/references/{agents,licenses}/
 //   plugins/pstack/agents/*.md listed in PI_AGENTS
 //     -> pi-subagents agent definitions in .pi-plugin/agents/
-//   No other claude-* slug may appear in skill prose; the scan below fails on strays.
+//   Runtime API names, paths, and concrete model IDs may appear only in runtime
+//   adapters; the scan below fails on leaks into shared workflow prose.
 //
 // Also validated: .agents/plugins/marketplace.json points at a real plugin
 // directory whose Codex manifest name matches (it carries no version; Codex
@@ -259,9 +259,9 @@ export const PROMPT_ADAPTERS = [
   },
 ];
 
-// Bare names, not a `package:` namespace, because the skills dispatch
-// `poteto-agent` and `comment-sicko` by exactly those names. comment-sicko is
-// report-only, so its allowlist carries no edit or write; poteto-agent matches
+// Bare package agent names; adapters still verify discovery and user overrides.
+// comment-sicko is report-only by prompt, not sandboxed: bash can mutate.
+// Its allowlist carries no edit or write; poteto-agent matches
 // the bundled worker, including contact_supervisor for escalation to the parent.
 export const PI_AGENTS = [
   {
@@ -274,9 +274,8 @@ export const PI_AGENTS = [
   },
 ];
 
-// systemPromptMode stays at pi-subagents' default (replace). The three keys
-// below are not defaults, so each carries information.
-const PI_AGENT_KEYS = ["thinking: high", "inheritProjectContext: true", "inheritSkills: true"];
+// Keep skill/repo context; model and thinking remain host-selected, not pinned here.
+const PI_AGENT_KEYS = ["inheritProjectContext: true", "inheritSkills: true"];
 
 export function piAgentDefinition(sourceText, { tools }) {
   const parsed = sourceText.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
@@ -291,6 +290,21 @@ export function piAgentDefinition(sourceText, { tools }) {
     return matches[0];
   });
   return ["---", ...carried, `tools: ${tools}`, ...PI_AGENT_KEYS, "---", body].join("\n");
+}
+
+export function codexAgentTemplate(sourceText, { readOnly = false } = {}) {
+  const name = frontmatterValue(sourceText, "name");
+  const description = frontmatterValue(sourceText, "description");
+  const body = sourceText.replace(/^---\n[\s\S]*?\n---\n/, "").trim();
+  if (!name || !description) throw new Error("native agent needs name and description");
+  return `name = ${JSON.stringify(name)}\ndescription = ${JSON.stringify(description)}\nsandbox_mode = "${readOnly ? "read-only" : "workspace-write"}"\ndeveloper_instructions = ${JSON.stringify(body)}\n`;
+}
+
+export function validateCodexHooks(manifestText, { read }) {
+  const manifest = JSON.parse(manifestText);
+  if (manifest.hooks !== "./.codex-plugin/hooks.json") throw new Error("Codex must explicitly own its native hook path");
+  const hooks = JSON.parse(read(manifest.hooks));
+  if (!hooks.hooks || Object.keys(hooks.hooks).length) throw new Error("Codex hooks must remain explicitly empty until native lifecycle is verified");
 }
 
 const code = (s) => `\`${s}\``;
@@ -309,20 +323,67 @@ export function replaceSection(text, title, body, file) {
   return lines.join("\n");
 }
 
+export function validateModelPolicy(models) {
+  const profiles = new Set(Object.keys(models.profiles ?? {}));
+  if (profiles.size === 0) throw new Error("models.json: profiles must not be empty");
+  const aliases = new Set(["inherit-parent", "auto"]);
+  for (const role of models.roles ?? []) {
+    if (!role.role || !role.skill || !Array.isArray(role.models) || role.models.length === 0) {
+      throw new Error("models.json: every role needs role, skill, and at least one model profile");
+    }
+    for (const profile of role.models) {
+      if (!profiles.has(profile) && !aliases.has(profile)) {
+        throw new Error(`models.json: role "${role.role}" references unknown profile "${profile}"`);
+      }
+    }
+  }
+  for (const profile of [models.singleRoleDefault, ...(models.panel ?? [])]) {
+    if (!profiles.has(profile)) throw new Error(`models.json: unknown default profile "${profile}"`);
+  }
+  for (const runtime of ["claude", "codex", "pi"]) {
+    const config = models.runtimes?.[runtime];
+    if (!config) throw new Error(`models.json: missing ${runtime} runtime`);
+    for (const profile of profiles) {
+      if (!config.profiles?.[profile]) throw new Error(`models.json: ${runtime} adapter does not resolve "${profile}"`);
+    }
+    for (const key of Object.keys(config.profiles)) {
+      if (!profiles.has(key)) throw new Error(`models.json: ${runtime} references unknown profile "${key}"`);
+    }
+    if (runtime === "claude") {
+      const known = new Set((config.available ?? []).map(({ id }) => id));
+      for (const id of [...Object.values(config.profiles), ...known]) {
+        if (!/^claude-[a-z0-9.-]+$/.test(id) || !known.has(id)) throw new Error(`models.json: invalid Claude reference ${id}`);
+      }
+    } else {
+      for (const selector of Object.values(config.profiles)) {
+        if (!["active", "highest-judgment", "distinct"].includes(selector)) throw new Error(`models.json: invalid ${runtime} selector ${selector}`);
+      }
+      const examples = runtime === "pi" ? config.crossVendorPanel : config.panel;
+      if (!Array.isArray(examples) || !examples.length) throw new Error(`models.json: missing ${runtime} examples`);
+      const pattern = runtime === "pi" ? /^[a-z0-9-]+\/[a-z0-9][a-z0-9./-]*$/ : /^gpt-[a-z0-9.-]+$/;
+      for (const id of [config.singleRoleExample, ...examples]) {
+        if (typeof id !== "string" || !pattern.test(id)) throw new Error(`models.json: invalid ${runtime} model reference ${id}`);
+      }
+    }
+  }
+}
+
 export function modelsSection(roles) {
   const bullets = roles.map((r) => `- ${r.role}: ${codeList(r.models)}`).join("\n");
   return (
-    "Role defaults, stamped from `plugins/pstack/models.json` (edit there, rerun `tools/generate.mjs`). " +
-    "A matching role line in `~/.claude/pstack-models.md` overrides each at runtime; see `/setup-pstack`.\n\n" +
+    "Runtime-neutral model profiles, stamped from `plugins/pstack/models.json`. " +
+    "Resolve each profile through the active runtime adapter. A matching role in the runtime model override sheet wins; see `/setup-pstack`.\n\n" +
     bullets
   );
 }
 
 export function setupModelsSection(models) {
-  const avail = models.available.map((m) => `${m.label} (${code(m.slug)})`).join(", ");
+  const profiles = Object.entries(models.profiles)
+    .map(([name, description]) => `${code(name)} means ${description.toLowerCase()}`)
+    .join("; ");
   return (
-    "Stamped from `plugins/pstack/models.json` (edit there, rerun `tools/generate.mjs`).\n\n" +
-    `- Available Claude models: ${avail}\n` +
+    "Runtime-neutral profiles, stamped from `plugins/pstack/models.json`. The active runtime adapter resolves them to usable model IDs.\n\n" +
+    `- Profiles: ${profiles}.\n` +
     `- Default panel: ${codeList(models.panel)}\n` +
     `- Single-role default: ${code(models.singleRoleDefault)}`
   );
@@ -336,7 +397,7 @@ export function overrideSheetBlock(models) {
     "# pstack model configuration\n\n" +
     "Per-role model overrides for pstack skills. Each pstack SKILL.md names its defaults in a Models section; " +
     "the values here override those defaults. Delete a line to fall back to the skill default. " +
-    "A value of `inherit-parent` or `auto` runs that role on the parent session's model (the `Agent` call omits `model`); " +
+    "A value of `inherit-parent` or `auto` runs that role on the parent session's model; " +
     "an alias entry in a panel list still counts toward that panel's fan-out.\n\n" +
     rows
   );
@@ -366,34 +427,39 @@ export function stampReviewerTable(text, models, file) {
   return lines.join("\n");
 }
 
-export function codexModelNamesSection(models) {
+export function claudeModelNamesSection(models) {
+  const runtime = models.runtimes.claude;
+  const profileRows = Object.entries(runtime.profiles)
+    .map(([profile, id]) => `- ${code(profile)}: ${code(id)}.`)
+    .join("\n");
+  const available = runtime.available.map((m) => `${m.label} (${code(m.id)})`).join(", ");
   return (
-    "Skills name Claude defaults (a single-role default for code/prose/judgment plus a diverse-model panel for " +
-    "diverse-model panels; each model-consuming skill lists its own in a Models section). These slugs do not " +
-    "resolve on Codex. Substitute your configured Codex models:\n\n" +
-    `- Single-model roles: your primary Codex model (for example ${code(models.codex.singleRoleExample)}).\n` +
-    "- Diverse-model panels (`arena`, `architect`, `interrogate`, `how` critics, `reflect`): the adversarial " +
-    "signal comes from model diversity, so use the distinct Codex models available to you. A good default quad " +
-    `on ChatGPT is ${codeList(models.codex.panelQuad)}. If only one model family is reachable, vary reasoning ` +
-    "effort and note in the verdict that diversity was reduced.\n\n" +
-    "`/setup-pstack` writes the configured model list. On Codex, set it to your Codex model slugs."
+    "Shared skills name model profiles. Resolve them to Claude model IDs as follows:\n\n" +
+    `${profileRows}\n\nDocumented model examples, not an access guarantee: ${available}. ` +
+    "`/setup-pstack` checks current discovery and records account-access uncertainty separately."
+  );
+}
+
+export function codexModelNamesSection(models) {
+  const runtime = models.runtimes.codex;
+  return (
+    "Shared skills name model profiles. Resolve `primary` to your main Codex model, `strongest` to the " +
+    "highest-judgment model available, and `balanced` to a distinct model for panel diversity.\n\n" +
+    `- Single-model example: ${code(runtime.singleRoleExample)}.\n` +
+    `- Diverse panel example: ${codeList(runtime.panel)}.\n\n` +
+    "Resolve default panels jointly to distinct discovered concrete IDs, preserve explicit duplicates, and disclose reduced diversity. Effort variation is not model diversity. `/setup-pstack` writes concrete Codex model IDs."
   );
 }
 
 export function piModelNamesSection(models) {
-  const prefix = models.pi.providerPrefix;
-  const qualified = (slug) => code(`${prefix}/${slug}`);
+  const runtime = models.runtimes.pi;
   return (
-    "Skills name Claude defaults (a single-role default for code, prose, and judgment plus a diverse-model panel; " +
-    "each model-consuming skill lists its own in a Models section). A Pi model ID is `provider/model`, so those " +
-    `slugs resolve as ${code(`${prefix}/<slug>`)} once the ${code(prefix)} provider is configured. List what you ` +
-    `have with ${code(`pi --list-models ${prefix}`)}.\n\n` +
-    `- Single-model roles: ${qualified(models.singleRoleDefault)}.\n` +
-    "- Diverse-model panels (`arena`, `architect`, `interrogate`, `how` critics, `reflect`): " +
-    `${models.panel.map(qualified).join(", ")}. The adversarial signal comes from diversity, so when a second ` +
-    `provider is configured swap one member for it (for example ${code(models.pi.crossVendorExample)}).\n` +
-    "- Thinking effort is a `:level` suffix on the ID: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`.\n\n" +
-    "`/setup-pstack` writes the configured model list. On Pi, write `provider/model` IDs."
+    "Shared skills name model profiles. Resolve `primary` to the active or preferred Pi model, `strongest` " +
+    "to the highest-judgment configured model, and `balanced` to a distinct provider or model for panel diversity.\n\n" +
+    `- Single-model example: ${code(runtime.singleRoleExample)}.\n` +
+    `- Cross-provider panel example: ${codeList(runtime.crossVendorPanel)}.\n` +
+    "- Pi model IDs use `provider/model` with an optional thinking-level suffix.\n\n" +
+    "Use only configured models and resolve panels jointly. Two provider routes to the same model are not distinct model judgments. Prefer distinct models, preserve explicit duplicates and disclose reduced diversity."
   );
 }
 
@@ -434,47 +500,70 @@ export function validatePiManifest(text, { pathExists }) {
   }
 }
 
-// After stamping, no claude-* model slug may survive in skill prose outside
-// the generator-owned regions. The scan blanks each owned line range (keeping
-// line numbers stable) and reports whatever still matches.
-const SLUG_RE = /claude-(?:opus|fable|sonnet|haiku)[0-9a-z.-]*/;
+const RUNTIME_PROSE_RULES = [
+  ["Claude Code", /\bClaude Code\b/i],
+  ["runtime config path", /(?:~\/)?\.(?:claude|codex|pi)\/|\b(?:CLAUDE|AGENTS)\.md\b/],
+  ["concrete Claude model", /claude-(?:opus|fable|sonnet|haiku)[0-9a-z.-]*/i],
+  ["concrete non-Claude model", /\b(?:gpt-\d[0-9a-z.-]*|gemini-\d[0-9a-z.-]*|codestral(?:-[0-9a-z.-]+)?|(?:openai|google|mistral)\/[0-9a-z.-]+)\b/i],
+  ["Claude tool name", /`(?:Agent|Skill)`|\bAskUserQuestion\b/],
+  ["Claude dispatch field", /\b(?:subagent_type|run_in_background)\b/],
+  ["Claude MCP name", /\bmcp__[a-z0-9_]+/i],
+  ["Codex dispatch field", /\bspawn_agent\b/],
+  ["runtime-specific authoring skill", /\bplugin-dev:skill-development\b/],
+  ["runtime-specific built-in workflow", /\/loop\b|\bloop`? skill\b|`(?:run|verify)` skill|the `verify`|`run` for CLIs|`verify` for UIs/],
+  ["runtime-specific invocation field", /\bdisable-model-invocation\b/],
+  ["runtime-specific transcript schema", /current-workspace transcript[^\n]*\.jsonl\b/i],
+];
 
-// [start, end) line ranges of every generator-owned region in this file.
-export function ownedRanges(lines) {
-  const ranges = [];
-  const sectionStarts = ["## Models", "## Model names"];
-  for (const heading of sectionStarts) {
-    const start = lines.indexOf(heading);
-    if (start === -1) continue;
-    let end = start + 1;
-    while (end < lines.length && !lines[end].startsWith("## ")) end++;
-    ranges.push([start + 1, end]);
-  }
-  const step = lines.findIndex((l) => l.startsWith("### 5. Write the override sheet"));
-  if (step !== -1) {
-    const open = lines.indexOf("```markdown", step);
-    const close = open === -1 ? -1 : lines.indexOf("```", open + 1);
-    if (close !== -1) ranges.push([open + 1, close]);
-  }
-  const table = lines.indexOf("| Subagent | Default model |");
-  if (table !== -1) {
-    let end = table + 2;
-    while (end < lines.length && lines[end].startsWith("| Reviewer ")) end++;
-    ranges.push([table + 2, end]);
-  }
-  return ranges;
+const RUNTIME_ADAPTER_PATHS = new Set([
+  "poteto-mode/references/claude-tools.md",
+  "poteto-mode/references/codex-tools.md",
+  "poteto-mode/references/pi-tools.md",
+]);
+
+const ADAPTER_REFERENCE_EXCEPTIONS = {
+  "poteto-mode/references/codex-tools.md": [
+    { id: "gpt-5.4", context: /(?<reference>GPT-5\.4) retired from Codex ChatGPT sign-in/dg, reason: "Documents retired sign-in access, not a dispatch default." },
+  ],
+  "poteto-mode/references/pi-tools.md": [
+    { id: "openai-codex/gpt-6-astra", context: /Catalog entries, including `anthropic\/claude-fable-5-1`, `openai\/gpt-6-astra`, and `(?<reference>openai-codex\/gpt-6-astra)`, do not prove account access/dg, reason: "Explains a second provider route to the declared model without claiming access." },
+  ],
+};
+
+function adapterModelReferences(path, text, models) {
+  if (!models) throw new Error("model policy required to validate adapter references");
+  const runtime = path.split("/").at(-1).replace("-tools.md", "");
+  const config = models.runtimes[runtime];
+  const allowed = new Set(runtime === "claude" ? config.available.map(({ id }) => id)
+    : [config.singleRoleExample, ...(config.panel ?? config.crossVendorPanel)]);
+  const references = /\b(?:[a-z][a-z0-9-]*\/)?(?:claude-(?:opus|fable|sonnet|haiku)|gpt-|gemini-|codestral|o[134])[0-9a-z._:-]*|\b(?:anthropic|openai(?:-codex)?|google|mistral|amazon-bedrock)\/[0-9a-z._:-]+/gi;
+  return text.split("\n").flatMap((line, i) => [...line.matchAll(references)].flatMap((match) => {
+    const [reference] = match;
+    const id = reference.toLowerCase().replace(/[.,]+$/, "");
+    if (allowed.has(id)) return [];
+    const suffix = id.match(/^(.*):(off|minimal|low|medium|high|xhigh|max)$/);
+    if (runtime === "pi" && suffix && allowed.has(suffix[1])) return [];
+    if (ADAPTER_REFERENCE_EXCEPTIONS[path]?.some((entry) => entry.id === id &&
+      [...line.matchAll(entry.context)].some(({ indices }) => {
+        const [start, end] = indices.groups.reference;
+        return start === match.index && end === match.index + reference.length;
+      }))) return [];
+    return [`${path}:${i + 1}: undeclared model reference ${reference}: ${line.trim()}`];
+  }));
 }
 
-export function strayModelSlugs(path, text) {
+export function runtimeSpecificSkillProse(path, text, models) {
+  path = path.replaceAll("\\", "/");
+  if (path.includes("/references/licenses/")) return [];
+  if (RUNTIME_ADAPTER_PATHS.has(path)) return adapterModelReferences(path, text, models);
   const lines = text.split("\n");
-  const owned = ownedRanges(lines);
-  const strays = [];
+  const problems = [];
   lines.forEach((line, i) => {
-    if (!SLUG_RE.test(line)) return;
-    if (owned.some(([s, e]) => i >= s && i < e)) return;
-    strays.push(`${path}:${i + 1}: ${line.trim()}`);
+    for (const [label, pattern] of RUNTIME_PROSE_RULES) {
+      if (pattern.test(line)) problems.push(`${path}:${i + 1}: ${label}: ${line.trim()}`);
+    }
   });
-  return strays;
+  return problems;
 }
 
 // Editorial ordering of the README "Slash commands" table. Set-checked against
@@ -559,6 +648,7 @@ function main() {
   }
 
   const models = JSON.parse(readFileSync(join(repo, "plugins/pstack/models.json"), "utf8"));
+  validateModelPolicy(models);
   const skillsDir = join(repo, "plugins/pstack/skills");
 
   const bySkill = new Map();
@@ -591,6 +681,7 @@ function main() {
     if (stampFile(path, text, "skills/setup-pstack/SKILL.md (models)")) modelStamps++;
   }
   for (const [file, render] of [
+    ["claude-tools.md", claudeModelNamesSection],
     ["codex-tools.md", codexModelNamesSection],
     ["pi-tools.md", piModelNamesSection],
   ]) {
@@ -601,25 +692,26 @@ function main() {
   }
   if (modelStamps === 0) console.log("ok: model-policy sections current");
 
-  const strays = [];
+  const runtimeLeaks = [];
   const walk = (dir) => {
     for (const entry of readdirSync(dir)) {
       if (entry === "node_modules" || entry === "scripts") continue;
       const full = join(dir, entry);
       if (statSync(full).isDirectory()) walk(full);
       else if (entry.endsWith(".md")) {
-        strays.push(...strayModelSlugs(full.slice(repo.length + 1), readFileSync(full, "utf8")));
+        const path = relative(skillsDir, full);
+        runtimeLeaks.push(...runtimeSpecificSkillProse(path, readFileSync(full, "utf8"), models));
       }
     }
   };
   walk(skillsDir);
-  if (strays.length) {
+  if (runtimeLeaks.length) {
     throw new Error(
-      `claude-* model slugs outside generator-owned regions (move the fact into models.json or reference the role):\n` +
-        strays.join("\n"),
+      "runtime prose or model-reference violations (use runtime-contract.md or declare adapter model policy):\n" +
+        runtimeLeaks.join("\n"),
     );
   }
-  console.log("ok: no stray model slugs in skill prose");
+  console.log("ok: shared skill prose is runtime-neutral; adapter model references match policy");
 
   const skills = publicSkills(skillsDir);
 
@@ -656,6 +748,20 @@ function main() {
   }
   if (piAgentsChanged === 0) console.log(`ok: ${PI_AGENTS.length} Pi agent definitions current`);
 
+  const codexTemplatesDir = join(repo, "plugins/pstack/.codex-plugin/agent-templates");
+  mkdirSync(codexTemplatesDir, { recursive: true });
+  for (const agent of PI_AGENTS) {
+    const name = basename(agent.source, ".md");
+    stampFile(join(codexTemplatesDir, `${name}.toml`), codexAgentTemplate(readFileSync(join(repo, agent.source), "utf8"), { readOnly: name === "comment-sicko" }), `Codex agent template ${name}`);
+  }
+  for (const file of readdirSync(codexTemplatesDir)) {
+    if (!PI_AGENTS.some((agent) => `${basename(agent.source, ".md")}.toml` === file)) {
+      unlinkSync(join(codexTemplatesDir, file));
+      console.log(`removed orphan: Codex agent template ${file}`);
+    }
+  }
+  console.log("ok: Codex native templates current (installation remains explicit)");
+
   const readmePath = join(repo, "README.md");
   const readme = readFileSync(readmePath, "utf8");
   const nextReadme = renderReadmeTable(readme, skills);
@@ -674,6 +780,11 @@ function main() {
   console.log("ok: local markdown links stay inside the skills tree");
   validateProsePaths(skillsDir);
   console.log("ok: no skill prose points at a path outside the skills tree");
+
+  validateCodexHooks(readFileSync(join(repo, "plugins/pstack/.codex-plugin/plugin.json"), "utf8"), {
+    read: (path) => readFileSync(join(repo, "plugins/pstack", path), "utf8"),
+  });
+  console.log("ok: Codex hook ownership excludes Claude lifecycle");
 
   const codexName = JSON.parse(
     readFileSync(join(repo, "plugins/pstack/.codex-plugin/plugin.json"), "utf8"),

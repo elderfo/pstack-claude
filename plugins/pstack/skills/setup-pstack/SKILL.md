@@ -1,82 +1,76 @@
 ---
 name: setup-pstack
-description: Configure which models pstack uses per role. Detects your available Claude models and writes a per-role override file that the user can include from their CLAUDE.md. Use for /setup-pstack, "configure pstack models", or changing pstack's model choices.
+description: Configure which models pstack uses per role. Detects models available in the active runtime and writes its per-role override sheet. Use for /setup-pstack, "configure pstack models", or changing pstack's model choices.
 menu-description: configure pstack per-role model choices
 ---
 
 # Setup pstack
 
-Write `~/.claude/pstack-models.md`, a per-role model override sheet you include from your global `CLAUDE.md`. Each pstack skill names a default model inline; the override sheet is the layer that adapts those defaults to the models you actually have access to.
-
-**Platform note.** On Codex, the override sheet is `~/.codex/pstack-models.md`, the slugs are your Codex models (for example `gpt-5.5`) not `claude-*`, and you load it by adding the sheet's contents to `~/.codex/AGENTS.md` (Codex has no `@`-include into a rules file). The role rows in step 5 are identical; only the slugs, the file path, and the load mechanism change. Detect Codex slugs from `~/.codex/config.toml` (`model = ...`) plus whatever the user confirms. See [`codex-tools.md`](../poteto-mode/references/codex-tools.md). On Pi, the sheet is `~/.pi/agent/pstack-models.md`, the values are `provider/model` IDs detected with `pi --list-models`, and you load it by pasting the sheet's contents into `~/.pi/agent/AGENTS.md`. See [`pi-tools.md`](../poteto-mode/references/pi-tools.md).
-
-Claude Code has no auto-applied "rules" mechanism like Cursor's `.mdc`. Inclusion is explicit: the user adds a line to `~/.claude/CLAUDE.md` (or their project `CLAUDE.md`) such as:
-
-```text
-@~/.claude/pstack-models.md
-```
-
-so the file is loaded as context for every session.
+Read the [runtime contract](../poteto-mode/references/runtime-contract.md) and the active runtime adapter. The adapter defines model discovery, the model override sheet, and how global instructions load that sheet.
 
 ## Steps
 
 ### 1. Detect available models
 
-Enumerate the model slugs you can pass to an `Agent` subagent in this session — that is the dependable source. The currently available Claude models and the default panel are listed in [Models](#models) below; the quad is chosen for cross-family, cross-tier diversity, and the single-role default stays out of the panels because it already covers the single-model roles. Ask the user to confirm or paste any additional slugs they want available. Never write a real slug you have not confirmed is available. The aliases `inherit-parent` and `auto` are always valid even though they are not detected slugs; both mean the role runs on the parent session's model, which the `Agent` call expresses by omitting `model`.
+Use the runtime's model registry or model-list command. Separate discovered IDs from confirmed account access. Catalog presence alone is not a live inference test; do not launch probes without approval. `inherit-parent` and `auto` request the parent's model, but the adapter must validate lowering against effective agent defaults before promising inheritance.
 
 ### 2. Load current state
 
-The default role-to-model mapping is the rule shape shown in step 5 below. If `~/.claude/pstack-models.md` already exists, read it and treat its values as the current choices. Otherwise start from those defaults.
+Read the runtime model override sheet when it exists. Treat its values as the current choices. Otherwise resolve the profiles in [Models](#models) through the active runtime adapter. Before writing either file, inspect the selected instructions file for an unmarked legacy sheet headed `# pstack model configuration`. If one exists outside a managed block, stop for reconciliation, even if the user removed role lines. Do not infer its bounds or append a new configuration.
 
 ### 3. Map and confirm
 
-Show every role with its current model, marking any real slug not in the detected set as needing a choice. Ask whether to accept as-is or change specific roles, offering the detected models plus `inherit-parent` and `auto` as the options. Prefer `AskUserQuestion` over free text. For panel roles (how critics, arena runners, architect runners, interrogate reviewers) the value is a list, and one subagent runs per entry, alias entries included, so the list length sets the count. `arena cross-judge pool` is also a list, but Arena selects one value from it whose model family differs from the parent's when possible. `swarm workers` is the default model for every worker unless a race or comparison assigns another model per arm.
+Show every role with its current model. Mark an unavailable concrete ID as needing a choice. Request a choice between accepting the current map and changing named roles. Offer available model IDs plus `inherit-parent` and `auto`.
+
+A panel role contains a list. Run one child per list entry, including aliases, so list length sets panel size. `arena cross-judge pool` is also a list, but Arena selects one entry from a different model family than the parent when possible. `swarm workers` is the default for each worker unless a race names a model per arm.
 
 ### 4. Validate
 
-Every real slug written must be in the detected set; `inherit-parent` and `auto` always pass. If a chosen real slug is not available, stop and ask again. An override pointing at a model the user cannot use breaks every delegation that reads it.
+Require concrete IDs in the detected set, recording unverified account access separately. Validate aliases against native precedence and validate any effort against the selected model/client. Resolve default panels jointly for distinct models where possible; preserve intentional duplicate overrides and report reduced diversity. If a choice is unsupported, request another before writing.
 
 ### 5. Write the override sheet
 
-Write `~/.claude/pstack-models.md` with the shape below. Overwrite the whole file so re-runs stay idempotent.
+Write the runtime model override sheet with the shape below. Replace the profile names with concrete model IDs resolved by the active runtime adapter. Overwrite the whole file so reruns stay idempotent.
 
 ```markdown
 # pstack model configuration
 
-Per-role model overrides for pstack skills. Each pstack SKILL.md names its defaults in a Models section; the values here override those defaults. Delete a line to fall back to the skill default. A value of `inherit-parent` or `auto` runs that role on the parent session's model (the `Agent` call omits `model`); an alias entry in a panel list still counts toward that panel's fan-out.
+Per-role model overrides for pstack skills. Each pstack SKILL.md names its defaults in a Models section; the values here override those defaults. Delete a line to fall back to the skill default. A value of `inherit-parent` or `auto` runs that role on the parent session's model; an alias entry in a panel list still counts toward that panel's fan-out.
 
-feature, refactoring: claude-opus-5
-bug-fix: claude-fable-5
-perf-issue: claude-fable-5
-hillclimb: claude-fable-5
-judgment and prose: claude-opus-5
-strongest judgment: claude-fable-5
-how explorer: claude-opus-5
-how explainer: claude-opus-5
-how critics: claude-opus-5, claude-fable-5, claude-sonnet-5
-why investigators: claude-opus-5
-why synthesizer: claude-opus-5
-reflect tooling: claude-opus-5
-reflect judgment, divergent, synthesizer: claude-opus-5
-arena runners: claude-opus-5, claude-fable-5, claude-sonnet-5
-arena cross-judge pool: claude-opus-5, claude-fable-5, claude-sonnet-5
-swarm workers: claude-opus-5
-architect runners: claude-opus-5, claude-fable-5, claude-sonnet-5
-interrogate reviewers: claude-opus-5, claude-fable-5, claude-sonnet-5
+feature, refactoring: primary
+bug-fix: strongest
+perf-issue: strongest
+hillclimb: strongest
+judgment and prose: primary
+strongest judgment: strongest
+how explorer: primary
+how explainer: primary
+how critics: primary, strongest, balanced
+why investigators: primary
+why synthesizer: primary
+reflect tooling: primary
+reflect judgment, divergent, synthesizer: primary
+arena runners: primary, strongest, balanced
+arena cross-judge pool: primary, strongest, balanced
+swarm workers: primary
+architect runners: primary, strongest, balanced
+interrogate reviewers: primary, strongest, balanced
 ```
 
-### 6. Wire it in
+Model-role lines contain concrete IDs or pstack aliases, never execution-profile names such as `general` or a native agent configuration blob. Optional separate lines `<role> effort: <native-level>` and `<role> context: fresh|fork` carry orthogonal controls, validated and lowered by the adapter. For a heterogeneous panel, an effort must be supported by every selected model or left inherited; do not silently clamp unsupported values. Omitted effort/context keeps the adapter's task-aware default, not a highest-effort mandate.
 
-If `~/.claude/CLAUDE.md` does not already include `~/.claude/pstack-models.md`, append the `@~/.claude/pstack-models.md` line so it loads on every session. If the user prefers project scope, add the include to the project's `CLAUDE.md` instead.
+### 6. Load the sheet
+
+Use the adapter's load mechanism to add the sheet to global instructions. If the runtime cannot include another file, replace one managed block delimited by `<!-- pstack-models:start -->` and `<!-- pstack-models:end -->` in its global instructions. Preserve all content outside the block; reject duplicate/unmatched markers or an unmarked legacy sheet outside the block for reconciliation. Never append a second copy on rerun. Preserve an existing project-scoped choice when the user already made one.
 
 ### 7. Confirm
 
-Tell the user where the override was written and how it loads (via the `@` include in CLAUDE.md). Re-running this skill updates the override sheet.
+Tell the user where the override sheet was written, how the runtime loads it, and whether panel diversity was reduced. Rerunning this skill updates the same file.
 
 ## Models
 
-Stamped from `plugins/pstack/models.json` (edit there, rerun `tools/generate.mjs`).
+Runtime-neutral profiles, stamped from `plugins/pstack/models.json`. The active runtime adapter resolves them to usable model IDs.
 
-- Available Claude models: Opus 5 (`claude-opus-5`), Opus 4.8 (`claude-opus-4-8`), Opus 4.6 (`claude-opus-4-6`), Fable 5 (`claude-fable-5`), Sonnet 5 (`claude-sonnet-5`), Sonnet 4.6 (`claude-sonnet-4-6`), Haiku 4.5 (`claude-haiku-4-5`)
-- Default panel: `claude-opus-5`, `claude-fable-5`, `claude-sonnet-5`
-- Single-role default: `claude-opus-5`
+- Profiles: `primary` means default model for implementation, explanation, and prose; `strongest` means highest-judgment model for difficult or adversarial work; `balanced` means a distinct model for panel diversity and lower-cost work.
+- Default panel: `primary`, `strongest`, `balanced`
+- Single-role default: `primary`

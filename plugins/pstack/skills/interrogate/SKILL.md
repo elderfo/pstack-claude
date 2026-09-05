@@ -10,7 +10,7 @@ Spawn one reviewer per configured model to adversarially review code changes. Ea
 
 The deliverable is a synthesized verdict. Do NOT auto-apply changes.
 
-**Platform note.** On Codex, the `subagent_type`/`model`/`readonly` dispatch fields and the `claude-*` model slugs below are Claude defaults. Resolve them via [`codex-tools.md`](../poteto-mode/references/codex-tools.md) (dispatch maps to `spawn_agent`; substitute your configured Codex models, keeping the panel model-diverse). On Pi, resolve the same names via [`pi-tools.md`](../poteto-mode/references/pi-tools.md).
+Read the [runtime contract](../poteto-mode/references/runtime-contract.md) before delegating work.
 
 ## Step 1, Determine Scope
 
@@ -35,20 +35,20 @@ Write one clear paragraph. Reviewers challenge whether the work achieves the int
 
 ## Step 3, Spawn Reviewers
 
-Launch all reviewers in a single message using the `Agent` tool. Use the `interrogate reviewers` list from `~/.claude/pstack-models.md` when present, one reviewer per entry, extending or shrinking the Reviewer A/B/C/D labels below to the configured entry count; otherwise use the table defaults.
+Delegate all reviewers as one concurrent group. Use the `interrogate reviewers` list from the runtime model override sheet when present, one reviewer per entry. Extend or shrink the Reviewer labels below to match the configured count. Otherwise use the table defaults.
 
 | Subagent | Default model |
 |----------|---------------|
-| Reviewer A | `claude-opus-5` |
-| Reviewer B | `claude-fable-5` |
-| Reviewer C | `claude-sonnet-5` |
+| Reviewer A | `primary` |
+| Reviewer B | `strongest` |
+| Reviewer C | `balanced` |
 
 For each reviewer:
-- `subagent_type`: `general-purpose`
-- `model`: the configured `interrogate reviewers` entry, or the table default with no configured line
-- `readonly`: `true`
+- Profile: `general`.
+- Model role: the matching configured `interrogate reviewers` entry, or the table default.
+- Access: read-only.
 
-If a model slug is rejected as unresolvable when you try to spawn the subagent, check the valid slugs in the Agent tool's error message, pick the closest equivalent (prefer the highest-reasoning tier of the same family), spawn with the valid slug, and open a separate PR to update the configured value or default table. Do not block the review on the slug issue. If the configured value is `inherit-parent` or `auto`, omit `model` instead; never treat those aliases as broken slugs or enter this fallback for them.
+If the runtime rejects a concrete model ID, inspect its available model list and choose the closest equivalent from the same family or capability tier. Continue the review, then open a separate PR to fix the configured value. `inherit-parent` and `auto` are valid aliases, not concrete IDs.
 
 Read `references/reviewer-prompt.md` and fill in the template with:
 1. The stated intent

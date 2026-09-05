@@ -1,0 +1,4 @@
+{"type":"session_meta","payload":{"id":"fixture-codex-event-first","cwd":"/fixture/work"}}
+{"type":"event_msg","payload":{"type":"user_message","message":"Opening event-only request"}}
+{"type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"First reply"}]}}
+{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Later response-item request"}]}}

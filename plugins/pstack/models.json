@@ -1,41 +1,66 @@
 {
-  "singleRoleDefault": "claude-opus-5",
-  "panel": ["claude-opus-5", "claude-fable-5", "claude-sonnet-5"],
-  "available": [
-    { "label": "Opus 5", "slug": "claude-opus-5" },
-    { "label": "Opus 4.8", "slug": "claude-opus-4-8" },
-    { "label": "Opus 4.6", "slug": "claude-opus-4-6" },
-    { "label": "Fable 5", "slug": "claude-fable-5" },
-    { "label": "Sonnet 5", "slug": "claude-sonnet-5" },
-    { "label": "Sonnet 4.6", "slug": "claude-sonnet-4-6" },
-    { "label": "Haiku 4.5", "slug": "claude-haiku-4-5" }
-  ],
-  "roles": [
-    { "role": "feature, refactoring", "models": ["claude-opus-5"], "skill": "poteto-mode" },
-    { "role": "bug-fix", "models": ["claude-fable-5"], "skill": "poteto-mode" },
-    { "role": "perf-issue", "models": ["claude-fable-5"], "skill": "poteto-mode" },
-    { "role": "hillclimb", "models": ["claude-fable-5"], "skill": "poteto-mode" },
-    { "role": "judgment and prose", "models": ["claude-opus-5"], "skill": "poteto-mode" },
-    { "role": "strongest judgment", "models": ["claude-fable-5"], "skill": "poteto-mode" },
-    { "role": "how explorer", "models": ["claude-opus-5"], "skill": "how" },
-    { "role": "how explainer", "models": ["claude-opus-5"], "skill": "how" },
-    { "role": "how critics", "models": ["claude-opus-5", "claude-fable-5", "claude-sonnet-5"], "skill": "how" },
-    { "role": "why investigators", "models": ["claude-opus-5"], "skill": "why" },
-    { "role": "why synthesizer", "models": ["claude-opus-5"], "skill": "why" },
-    { "role": "reflect tooling", "models": ["claude-opus-5"], "skill": "reflect" },
-    { "role": "reflect judgment, divergent, synthesizer", "models": ["claude-opus-5"], "skill": "reflect" },
-    { "role": "arena runners", "models": ["claude-opus-5", "claude-fable-5", "claude-sonnet-5"], "skill": "arena" },
-    { "role": "arena cross-judge pool", "models": ["claude-opus-5", "claude-fable-5", "claude-sonnet-5"], "skill": "arena" },
-    { "role": "swarm workers", "models": ["claude-opus-5"], "skill": "swarm" },
-    { "role": "architect runners", "models": ["claude-opus-5", "claude-fable-5", "claude-sonnet-5"], "skill": "architect" },
-    { "role": "interrogate reviewers", "models": ["claude-opus-5", "claude-fable-5", "claude-sonnet-5"], "skill": "interrogate" }
-  ],
-  "codex": {
-    "singleRoleExample": "gpt-5.6-sol",
-    "panelQuad": ["gpt-5.6-sol", "gpt-5.5", "gpt-5.4", "gpt-5.6-luna"]
+  "singleRoleDefault": "primary",
+  "panel": ["primary", "strongest", "balanced"],
+  "profiles": {
+    "primary": "Default model for implementation, explanation, and prose",
+    "strongest": "Highest-judgment model for difficult or adversarial work",
+    "balanced": "A distinct model for panel diversity and lower-cost work"
   },
-  "pi": {
-    "providerPrefix": "anthropic",
-    "crossVendorExample": "openai/gpt-5.4"
+  "roles": [
+    { "role": "feature, refactoring", "models": ["primary"], "skill": "poteto-mode" },
+    { "role": "bug-fix", "models": ["strongest"], "skill": "poteto-mode" },
+    { "role": "perf-issue", "models": ["strongest"], "skill": "poteto-mode" },
+    { "role": "hillclimb", "models": ["strongest"], "skill": "poteto-mode" },
+    { "role": "judgment and prose", "models": ["primary"], "skill": "poteto-mode" },
+    { "role": "strongest judgment", "models": ["strongest"], "skill": "poteto-mode" },
+    { "role": "how explorer", "models": ["primary"], "skill": "how" },
+    { "role": "how explainer", "models": ["primary"], "skill": "how" },
+    { "role": "how critics", "models": ["primary", "strongest", "balanced"], "skill": "how" },
+    { "role": "why investigators", "models": ["primary"], "skill": "why" },
+    { "role": "why synthesizer", "models": ["primary"], "skill": "why" },
+    { "role": "reflect tooling", "models": ["primary"], "skill": "reflect" },
+    { "role": "reflect judgment, divergent, synthesizer", "models": ["primary"], "skill": "reflect" },
+    { "role": "arena runners", "models": ["primary", "strongest", "balanced"], "skill": "arena" },
+    { "role": "arena cross-judge pool", "models": ["primary", "strongest", "balanced"], "skill": "arena" },
+    { "role": "swarm workers", "models": ["primary"], "skill": "swarm" },
+    { "role": "architect runners", "models": ["primary", "strongest", "balanced"], "skill": "architect" },
+    { "role": "interrogate reviewers", "models": ["primary", "strongest", "balanced"], "skill": "interrogate" }
+  ],
+  "runtimes": {
+    "claude": {
+      "profiles": {
+        "primary": "claude-opus-5",
+        "strongest": "claude-fable-5-1",
+        "balanced": "claude-sonnet-5"
+      },
+      "available": [
+        { "label": "Fable 5.1", "id": "claude-fable-5-1" },
+        { "label": "Opus 5", "id": "claude-opus-5" },
+        { "label": "Opus 4.8", "id": "claude-opus-4-8" },
+        { "label": "Opus 4.6", "id": "claude-opus-4-6" },
+        { "label": "Fable 5", "id": "claude-fable-5" },
+        { "label": "Sonnet 5", "id": "claude-sonnet-5" },
+        { "label": "Sonnet 4.6", "id": "claude-sonnet-4-6" },
+        { "label": "Haiku 4.5", "id": "claude-haiku-4-5" }
+      ]
+    },
+    "codex": {
+      "profiles": {
+        "primary": "active",
+        "strongest": "highest-judgment",
+        "balanced": "distinct"
+      },
+      "singleRoleExample": "gpt-6-astra",
+      "panel": ["gpt-6-astra", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]
+    },
+    "pi": {
+      "profiles": {
+        "primary": "active",
+        "strongest": "highest-judgment",
+        "balanced": "distinct"
+      },
+      "singleRoleExample": "openai/gpt-6-astra",
+      "crossVendorPanel": ["anthropic/claude-fable-5-1", "openai/gpt-6-astra", "anthropic/claude-sonnet-5"]
+    }
   }
 }

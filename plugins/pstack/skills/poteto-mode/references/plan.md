@@ -16,7 +16,7 @@ Read the **Principles** section of the `poteto-mode` skill end to end, and the l
 
 ## 2. Scope and constraints
 
-State your read of scope and constraints in one paragraph. Use `AskUserQuestion` only for genuinely ambiguous intent (the **never-block-on-the-human** principle skill); give concrete options with each open question.
+State your read of scope and constraints in one paragraph. Use the runtime's choice prompt only for genuinely ambiguous intent (the **never-block-on-the-human** principle skill); give concrete options with each open question.
 
 Resolve what is in scope vs explicitly out, technical or platform constraints, patterns to preserve, and the definition of done.
 
@@ -24,8 +24,8 @@ Resolve what is in scope vs explicitly out, technical or platform constraints, p
 
 Delegate codebase exploration (the **guard-the-context-window** principle skill).
 
-- Prefer `subagent_type: "poteto-agent"`. `general-purpose` is the fallback. Never use Claude Code's built-in `Plan` agent; it ignores this skill.
-- Pass `model:` explicitly per the configured roles (the single-role default in poteto-mode's Models section covers code-writing delegations and judgment; multi-model panels run the configured panel — defaults in each panel skill's Models section, overridden via `/setup-pstack`).
+- Prefer the `poteto-agent` execution profile. `general` is the fallback. Never use a generic planning child that ignores this skill.
+- Assign the configured model role explicitly. The single-role default in poteto-mode covers code-writing delegations and judgment. Multi-model panels use each panel skill's configured role list.
 
 Each explorer returns file pointers, conventions, dependencies, test infrastructure, and entry points. No inlined dumps.
 
@@ -73,7 +73,7 @@ Order phases so infrastructure and shared types land first (the **foundational-t
 
 For changes touching existing code, apply the **redesign-from-first-principles** principle skill: if we'd built this with the new requirement on day one, what would it look like? Redesign holistically; deliver incrementally.
 
-If a phase creates or edits a skill, the phase instructs the implementer to use the **plugin-dev:skill-development** skill (Claude Code's skill for authoring SKILL.md files).
+If a phase creates or edits a skill, instruct the implementer to use the runtime's **skill-authoring guidance**.
 
 ## 5. Verification per phase
 
@@ -83,8 +83,8 @@ Each phase needs both:
 
 **Runtime.** Exercise the feature on the matching surface via the relevant control skill:
 
-- Browser / Electron / Web UIs: Claude Code's **verify** skill (VS Code extension launches/inspects browser/Electron UIs).
-- CLIs and TUIs: Claude Code's **run** skill (launches/drives CLIs/TUIs).
+- Browser / Electron / Web UIs: the runtime's UI driver (VS Code extension launches/inspects browser/Electron UIs).
+- CLIs and TUIs: the runtime's CLI or TUI driver (launches/drives CLIs/TUIs).
 - Native mobile: whatever simulator-driving skill your team has.
 - No control skill for the touched surface: flag it in the plan.
 

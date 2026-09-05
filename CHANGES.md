@@ -2,6 +2,26 @@
 
 This port applies the Cursor → Claude Code substitutions in skill bodies. Earlier drafts left them flagged; this revision resolves them. A later pass added a Codex build that shares the same skills; see [Codex port](#codex-port) below.
 
+## Unreleased
+
+## 0.9.20 - 2026-09-05
+
+### Shared core and native-runtime fixes
+
+Preserve the shared-core migration and put concrete execution in the Claude, Codex and Pi adapters. General/named-agent mapping, parent-model alias precedence, explicit-only authoring, supported effort and fresh/fork context now have native contracts and focused deterministic fixtures. Model panels resolve jointly, keep deliberate duplicates and report reduced diversity; current examples are not access guarantees.
+
+- `no-comments` and the shared/generated `comment-sicko` prompts now separate proposed from applied deletions: the report-only child proposes, the parent reviews, applies, restores and re-reviews. Legal/public-API/safety exceptions remain review gates.
+- `show-me-your-work` loads the contract. The explicit-file session evidence parser preserves Claude/Pi/Codex tool records, validates workspace/schema, and handles Pi branch selection without scanning unrelated stores or replaying exact compacted context.
+- Worktree cleanup no longer reads transcripts or marks unknown activity safe; independent session/child checks and human deletion approval remain mandatory.
+- Pi's mandate now names the shared contract. Background readiness inspection is distinct from finite-job completion; allowlist/provider discovery, asynchronous workflow ordering and infrastructure-failure boundaries are explicit. Generated Pi profiles no longer force high thinking.
+- Codex gets optional generated native TOML templates and an explicitly empty native hook set so the Claude hook is not auto-imported. Current native subagent defaults, skill invocation policy, plugin/desktop/web access boundaries and model/effort precedence replace legacy assumptions.
+- Setup model-block replacement is idempotent and rejects legacy unmarked pasted sheets for reconciliation, including sheets with removed overrides. Shared playbooks reconcile retained children before respawning rather than assuming restart killed all work. The orchestration inbox now uses the runtime scheduling capability, with an unquoted native-workflow regression in the neutrality gate. Worker briefs remain self-contained in both fresh and forked contexts.
+- Panel resolution returns dispatch-ready selections with parent alias provenance and a model/effort snapshot. Composition tests cover both aliases across all runtimes, Codex effort conflicts, Pi thinking overrides, and Claude omission semantics.
+- Session evidence opens explicit files nonblocking before descriptor-based regular-file validation. Timeout-isolated FIFO and symlink-to-FIFO regressions preserve bounded reads and descriptor cleanup.
+- Adapter model-reference validation derives allowed IDs from model policy and narrowly justified contextual references. Unknown IDs and malformed model/effort tokens fail outside generated sections without banning native instructions or changing license texts. Contextual exceptions cover only the explanatory reference occurrence, not other references on the same line. The generator and focused fixtures cover documented model/effort syntax. Path normalization preserves adapter validation on Windows.
+
+Validation covers deterministic and static checks plus existing local script suites. Fresh native inference and plugin-install smoke tests remain unverified. Version 0.9.20 synchronizes the plugin manifests and Pi package so installers can recognize the update after release.
+
 ## 0.9.19 — native Pi package
 
 Pi installs this repository as a package of its own. The root `package.json` carries the `pi-package` keyword and a `pi` block naming one extension, the shared `plugins/pstack/skills/` tree, 31 generated prompt templates, and two generated pi-subagents agent definitions. `pi install git:github.com/michael-denyer/pstack-claude` is the entire install. Nothing is duplicated: `pi.skills` points at the same tree the other five runtimes read, and the generator refuses any `skills` entry that is not that tree, so a second copy cannot appear and drift.

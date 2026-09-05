@@ -6,11 +6,11 @@ menu-description: investigate why something was built this way (parallel multi-M
 
 # Why
 
+Read the [runtime contract](../poteto-mode/references/runtime-contract.md) before discovering integrations or delegating work.
+
 Investigate the motivation and intent behind code. Why was it built this way? What edge cases were considered? What product, business, or operational constraints shaped the design? What alternatives were rejected, and why?
 
 Companion to the `how` skill. `how` answers what the code does and how it works. `why` answers what forces led to its shape.
-
-**Platform note.** On Codex, the Claude tool names and `claude-*` slugs named below are Claude defaults. Resolve them via [`codex-tools.md`](../poteto-mode/references/codex-tools.md). On Pi, resolve the same names via [`pi-tools.md`](../poteto-mode/references/pi-tools.md).
 
 ## How this skill works
 
@@ -100,7 +100,7 @@ Capture this as seed context (file paths, symbols, commits, PR numbers, linked t
 
 ### Discovery
 
-Before spawning investigators, list the available MCPs in the Claude Code environment. Use the tool list at the top of the system prompt (every MCP appears as a tool with prefix `mcp__<server>__<name>`). Otherwise read `.mcp.json` in the plugin/project, or run `claude mcp list`.
+Discover every configured external integration through the active runtime adapter. Inspect each integration's tools, instructions, and resource descriptors before assigning it to an evidence category.
 
 Map each available MCP to one evidence category:
 
@@ -118,10 +118,11 @@ Aim for a complete **coverage map**, not a minimal one. A null result from an is
 
 Launch all matching investigators in a single message so they run concurrently. One investigator per category lets each specialize in one tool's query vocabulary and result shape. Don't ask one agent to cover multiple MCPs.
 
-Subagent config (each):
-- `subagent_type`: `general-purpose`
-- `model`: your configured why-investigators model (default in [Models](#models))
-- `readonly`: `false` (agent mode). **Do not use readonly/Ask mode.** It strips MCP access, which disables MCP-backed investigators entirely. The source control investigator would be safe in readonly, but keep modes uniform. Investigators still shouldn't write anything. That's a posture, not a sandbox.
+Child contract for each investigator:
+- Profile: `general`.
+- Model role: configured `why investigators` value, or the default in [Models](#models).
+- Capabilities: external integrations plus repository reads.
+- Write posture: no writes by instruction. Do not select a read-only profile when that profile removes external integrations.
 
 Each investigator gets:
 1. The base prompt from `references/investigator-prompt.md`
@@ -163,11 +164,12 @@ If your scope assessment suggests a single-commit trivial target where the PR de
 
 ## Step 4. Synthesize
 
-Spawn one synthesizer subagent:
+Delegate one synthesizer:
 
-- `subagent_type`: `general-purpose`
-- `model`: your configured why-synthesizer model (default in [Models](#models))
-- `readonly`: `false` (agent mode). The synthesizer's quality check spot-verifies citations, which can require MCP access. Readonly/Ask mode strips MCPs and defeats that.
+- Profile: `general`.
+- Model role: configured `why synthesizer` value, or the default in [Models](#models).
+- Capabilities: external integrations plus repository reads, because the quality check spot-verifies citations.
+- Write posture: no writes by instruction. Do not select a read-only profile when that profile removes external integrations.
 
 The synthesizer gets:
 1. The investigator findings, including any null results and any categories skipped with justification
@@ -233,7 +235,7 @@ After the Sources Consulted block, if the user's `why` question is a precursor t
 
 ## Models
 
-Role defaults, stamped from `plugins/pstack/models.json` (edit there, rerun `tools/generate.mjs`). A matching role line in `~/.claude/pstack-models.md` overrides each at runtime; see `/setup-pstack`.
+Runtime-neutral model profiles, stamped from `plugins/pstack/models.json`. Resolve each profile through the active runtime adapter. A matching role in the runtime model override sheet wins; see `/setup-pstack`.
 
-- why investigators: `claude-opus-5`
-- why synthesizer: `claude-opus-5`
+- why investigators: `primary`
+- why synthesizer: `primary`

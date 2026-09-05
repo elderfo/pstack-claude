@@ -8,7 +8,7 @@ menu-description: settle types and module shape before writing code that crosses
 
 Design before implementing. Sketch types, function signatures, class shapes, and module boundaries with `not implemented` bodies and pseudocode. Synthesize across multiple model perspectives, then fill in code against the chosen sketch. If implementation proves the sketch wrong, throw it out and redesign.
 
-**Platform note.** On Codex, the Claude tool names, `claude-*` slugs, and Claude built-in skills named below are Claude defaults. Resolve them via [`codex-tools.md`](../poteto-mode/references/codex-tools.md). On Pi, resolve the same names via [`pi-tools.md`](../poteto-mode/references/pi-tools.md).
+Read the [runtime contract](../poteto-mode/references/runtime-contract.md) before delegating work.
 
 ## Start
 
@@ -86,6 +86,6 @@ The caller's usage is written first and the type sketch derived from it. One fil
 
 ## Models
 
-Role defaults, stamped from `plugins/pstack/models.json` (edit there, rerun `tools/generate.mjs`). A matching role line in `~/.claude/pstack-models.md` overrides each at runtime; see `/setup-pstack`.
+Runtime-neutral model profiles, stamped from `plugins/pstack/models.json`. Resolve each profile through the active runtime adapter. A matching role in the runtime model override sheet wins; see `/setup-pstack`.
 
-- architect runners: `claude-opus-5`, `claude-fable-5`, `claude-sonnet-5`
+- architect runners: `primary`, `strongest`, `balanced`

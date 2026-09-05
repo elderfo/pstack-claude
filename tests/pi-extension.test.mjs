@@ -23,7 +23,10 @@ describe("Pi routing extension", () => {
     const result = await handlers.get("before_agent_start")({ systemPrompt: "base" });
     expect(result.systemPrompt.startsWith("base\n\n")).toBe(true);
     expect(result.systemPrompt).toContain(mandate);
-    expect(mandate.length).toBeGreaterThan(0);
+    expect(mandate).toContain("runtime-neutral execution contract");
+    expect(mandate).toContain("references/runtime-contract.md");
+    expect(mandate).toContain("references/pi-tools.md");
+    expect(mandate).not.toContain("written in Claude Code tool language");
   });
 
   test("registers nothing in a pi-subagents child", () => {

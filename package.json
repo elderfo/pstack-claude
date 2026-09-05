@@ -1,6 +1,6 @@
 {
   "name": "pstack",
-  "version": "0.9.19",
+  "version": "0.9.20",
   "description": "if you want to go fast, go deep first. Pi package for pstack: rigorous agent workflows you can parallelize with confidence. Original pstack by Lauren Tan (poteto).",
   "private": true,
   "license": "MIT",

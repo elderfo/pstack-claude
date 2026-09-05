@@ -5,7 +5,7 @@ Before responding to any non-trivial engineering task, meaning a feature, bug fi
 
 When the intent is already specific, enter directly: `tdd` (bug with a reproducible failure), `architect` (types and module shape before code that crosses a function boundary), `how` (how a subsystem works), `why` (why it was built this way), `arena` (N parallel attempts at one task), `interrogate` (multi-model diff review).
 
-pstack skills are written in Claude Code tool language. On Pi, the `Skill` and `Agent` tools, `AskUserQuestion`, `claude-*` model slugs, and Claude built-in skills resolve through the `poteto-mode` skill's `references/pi-tools.md`.
+pstack skills use a runtime-neutral execution contract. Read the `poteto-mode` skill's `references/runtime-contract.md` and `references/pi-tools.md` before runtime-dependent work. The Pi adapter owns native tools, model/effort lowering, context, scoped transcripts, and background execution.
 
 If you were dispatched as a child agent to execute a specific task, ignore this block. poteto-mode governs the orchestrating session, and it already shaped your dispatch.
 
