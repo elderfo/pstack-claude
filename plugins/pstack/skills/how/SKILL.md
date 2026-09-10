@@ -138,7 +138,7 @@ Present the explanation first (from Step 1), then the critique verdict below it.
 
 ## Models
 
-Runtime-neutral model profiles, stamped from `plugins/pstack/models.json`. Resolve each profile through the active runtime adapter. A matching role in the runtime model override sheet wins; see `/setup-pstack`.
+Role defaults, stamped from `plugins/pstack/models.json`. Resolve each profile through the active runtime adapter. A matching role in the runtime model override sheet wins; see `/setup-pstack`.
 
 - how explorer: `primary`
 - how explainer: `primary`

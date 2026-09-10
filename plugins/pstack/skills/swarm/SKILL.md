@@ -49,6 +49,6 @@ Return one consolidated in-chat report with the table, issue one-liners, gaps or
 
 ## Models
 
-Runtime-neutral model profiles, stamped from `plugins/pstack/models.json`. Resolve each profile through the active runtime adapter. A matching role in the runtime model override sheet wins; see `/setup-pstack`.
+Role defaults, stamped from `plugins/pstack/models.json`. Resolve each profile through the active runtime adapter. A matching role in the runtime model override sheet wins; see `/setup-pstack`.
 
 - swarm workers: `primary`

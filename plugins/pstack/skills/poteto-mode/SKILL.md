@@ -30,6 +30,8 @@ Remaining triggers:
 - Shipping UI, IDE, or CLI behavior → use the runtime's driver for that user-facing path. For bug fixes, reproduce first on the same path yourself; hand to the user only under the narrow Bug fix step 1 exception.
 - Any PR-status request → the **Babysit** playbook (`playbooks/babysit.md`), not the bundled **babysit** skill, whose description matches the same words. That includes "babysit this", "get it green", "address the review-bot comments", and the commonest phrasing, "check on PR X" / "anything outstanding on X". Never triggered by merely opening a PR. Declare its mode before polling; the playbook's step 1 owns the request-to-mode mapping. Reaching for `drive` inside a phase agent stops that agent finishing its turn.
 - Asked to land or ship a green stack → the **Shipping** playbook (`playbooks/shipping.md`). Green is not safe. Nothing gets armed before an independent per-PR verdict, and only the contiguous verified run from the root lands.
+- Deploying to a managed platform (Railway, Fly, Vercel, Heroku, and the like) → load that platform's skill, project-local or installed, before running its CLI, the same way Shipping step 1 resolves the forge before the first PR operation.
+- A defect found mid-task → severity decides its artifact, not where it turned up. A correctness or data gap gets a tracked issue even when it surfaces while writing a closure doc; a cosmetic margin can stay in the doc.
 - An automated PR-review bot or the agentic security review commented → skeptical posture. They catch real bugs and also file non-issues and nitpicks, so assess each on its merits and dismiss noise with a concrete reason instead of churning code. Triage fix / dismiss / ask per `references/bugbot-triage.md`.
 - Broken skill mid-task → fix it in its own PR. Don't block. Don't silently work around it.
 - Long, autonomous, or multi-phase work, or any task the user steps away from to review later ("going to bed", "trust it when i'm back", "keep going until X") → a decision trail via the **show-me-your-work** skill. Commit it when stakes need an auditable record; keep it local otherwise.
@@ -43,6 +45,8 @@ Read the leaf skill in full for any principle you apply. Each entry names when i
 - **Laziness Protocol** (**principle-laziness-protocol**). Refactoring, sizing a diff, or tempted to add abstractions, layers, or signal threading. Bias to deletion and the smallest change that solves the problem.
 - **Foundational Thinking** (**principle-foundational-thinking**). Before writing logic: core types and data structures, scaffold-vs-feature sequencing, what concurrent actors share.
 - **Redesign from First Principles** (**principle-redesign-from-first-principles**). Integrating a new requirement into an existing design. Redesign as if it had been foundational from day one.
+- **Attack the Premise** (**principle-attack-the-premise**). A brief asserts an existing behavior or constraint. Verify the premise before designing around it.
+- **Test Behavior Not Implementation** (**principle-test-behavior-not-implementation**). A test could pass while the user-visible behavior is wrong. Assert the behavior and observable outcome.
 - **Subtract Before You Add** (**principle-subtract-before-you-add**). Sequencing an addition, refactor, or rewrite. Remove dead weight first, then build on the simpler base.
 - **Minimize Reader Load** (**principle-minimize-reader-load**). Reviewing or shaping code that's hard to trace. Count layers and hidden state, collapse one-caller wrappers, shrink mutable scope.
 - **Outcome-Oriented Execution** (**principle-outcome-oriented-execution**). Planned rewrites and migrations with explicit phase boundaries. Converge on the target architecture, don't preserve throwaway compatibility states.
@@ -90,7 +94,7 @@ Use the `poteto-agent` execution profile for code-writing delegates and ad-hoc h
 
 Run delegations concurrently by default. Give them the capabilities their tasks require, pass file pointers instead of inlined context, and resolve each model role through the active runtime adapter. Do not choose a read-only profile that removes an integration the task needs. Code delegates tier by difficulty. Use the strongest-judgment role for cross-cutting design, subtle concurrency, or vague intent. Use the strongest instruction-following model for a precise difficult sequence. Use a fast model for trivial mechanical edits. Use the primary role otherwise. Multi-model panels use the configured panel and preserve real model diversity when the runtime supports it. `/setup-pstack` overrides these defaults. `inherit-parent` and `auto` use the parent model.
 
-You own every subagent's work. Review the diff and write your own summary, don't pass through what it said. Inspect retained children and use the adapter’s continuation/context support. Reconfirm consolidated scope on continuation; replace only when unavailable or intentionally requiring fresh review, and label that replacement. A second opinion is the same prompt against a different model. Agreement is high-signal.
+You own every subagent's work. Review the diff and write your own summary, don't pass through what it said. **Stop the abandoned agent first, and confirm it stopped.** The `judgment and prose` role owns concise, evidence-backed reports. **Stop the abandoned agent first, and confirm it stopped.** Inspect retained children and use the adapter’s continuation/context support. Reconfirm consolidated scope on continuation; replace only when unavailable or intentionally requiring fresh review, and label that replacement. A second opinion is the same prompt against a different model. Agreement is high-signal.
 
 ## Writing the reply
 
@@ -141,7 +145,7 @@ A large or cross-cutting effort (a migration across many call sites, an ambitiou
 
 ## Models
 
-Runtime-neutral model profiles, stamped from `plugins/pstack/models.json`. Resolve each profile through the active runtime adapter. A matching role in the runtime model override sheet wins; see `/setup-pstack`.
+Role defaults, stamped from `plugins/pstack/models.json`. Resolve each profile through the active runtime adapter. A matching role in the runtime model override sheet wins; see `/setup-pstack`.
 
 - feature, refactoring: `primary`
 - bug-fix: `strongest`

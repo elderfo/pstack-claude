@@ -1,6 +1,6 @@
 # pstack for Claude Code, Codex, Pi, Prime Agent, opencode, and Gemini CLI
 
-Claude Code port of [poteto](https://x.com/poteto)'s [pstack](https://github.com/cursor/plugins/tree/main/pstack) plugin. The skill tree is synced against upstream `4612556`, pstack v0.14.2. See [What's deliberately not ported](#whats-deliberately-not-ported). The same `skills/` tree ships as a Codex plugin, installs as a native [Pi](#pi) package, and is discovered natively by [Prime Agent](https://github.com/PrimeIntellect-ai/prime-agent), [opencode](#opencode), and [Gemini CLI](#gemini-cli). Original by Lauren Tan; ships MIT. Imports seven skills from [cursor-team-kit](https://github.com/cursor/plugins/tree/main/cursor-team-kit) (also MIT): `deslop`, `thermo-nuclear-code-quality-review`, `make-pr-easy-to-review`, `fix-ci`, `fix-merge-conflicts`, `get-pr-comments`, `what-did-i-get-done`.
+Claude Code port of [poteto](https://x.com/poteto)'s [pstack](https://github.com/cursor/plugins/tree/main/pstack) plugin. The skill tree is synced against upstream `e8d856f`, pstack v0.14.2. See [What's deliberately not ported](#whats-deliberately-not-ported). The same `skills/` tree ships as a Codex plugin, installs as a native [Pi](#pi) package, and is discovered natively by [Prime Agent](https://github.com/PrimeIntellect-ai/prime-agent), [opencode](#opencode), and [Gemini CLI](#gemini-cli). Original by Lauren Tan; ships MIT. Imports seven skills from [cursor-team-kit](https://github.com/cursor/plugins/tree/main/cursor-team-kit) (also MIT): `deslop`, `thermo-nuclear-code-quality-review`, `make-pr-easy-to-review`, `fix-ci`, `fix-merge-conflicts`, `get-pr-comments`, `what-did-i-get-done`.
 
 > if you want to go fast, go deep first. pstack helps you write less, but higher quality code. rigorous agent workflows you can parallelize with confidence.
 
@@ -48,7 +48,7 @@ The extension appends the routing mandate to the system prompt on every turn. No
 
 Pi also reads `~/.agents/skills/`, so the [shared Agent Skills install](#shared-agent-skills-install) works and gives you the skills alone. So does `pi install /path/to/plugins/pstack`, which finds the `skills/` convention directory and carries no extension, prompts, or agents.
 
-Pi ignores the pstack-specific `user-invocable: false` key, so its skill list shows the 21 `principle-*` leaves next to the 31 public workflows. Keep them installed; `poteto-mode` reads them by name.
+Pi ignores the pstack-specific `user-invocable: false` key, so its skill list shows the 23 `principle-*` leaves next to the 31 public workflows. Keep them installed; `poteto-mode` reads them by name.
 
 ### Shared Agent Skills install
 
@@ -61,7 +61,7 @@ mkdir -p ~/.agents/skills
 for s in plugins/pstack/skills/*/; do ln -s "$PWD/$s" ~/.agents/skills/"$(basename "$s")"; done
 ```
 
-The loop links all 52 skill directories. Thirty-one are public workflows and 21 `principle-*` directories are internal references used by `poteto-mode`. Each runtime decides whether it understands pstack-specific frontmatter such as `user-invocable: false`, so menu visibility differs. Keep the principle directories installed even when a runtime lists them.
+The loop links all 54 skill directories. Thirty-one are public workflows and 23 `principle-*` directories are internal references used by `poteto-mode`. Each runtime decides whether it understands pstack-specific frontmatter such as `user-invocable: false`, so menu visibility differs. Keep the principle directories installed even when a runtime lists them.
 
 Removing a link from `~/.agents/skills/` removes that skill from every runtime using the shared directory. Teardown is `rm ~/.agents/skills/<name>`.
 
@@ -104,7 +104,7 @@ Unverified relative to Codex: the Prime path is derived from Prime's documented 
 
 [opencode](https://opencode.ai/docs/skills) loads Agent Skills from `~/.agents/skills/` as well as its own `~/.config/opencode/skills/` directory. Use the [shared Agent Skills install](#shared-agent-skills-install). There is nothing to generate.
 
-opencode ignores the pstack-specific `user-invocable: false` key, so its picker lists the 21 `principle-*` leaves alongside the 31 public workflows. Claude Code hides the leaves from its user menu; other clients’ picker behavior varies. Keep them linked because `poteto-mode` cites them by name and expects to read each one.
+opencode ignores the pstack-specific `user-invocable: false` key, so its picker lists the 23 `principle-*` leaves alongside the 31 public workflows. Claude Code hides the leaves from its user menu; other clients’ picker behavior varies. Keep them linked because `poteto-mode` cites them by name and expects to read each one.
 
 The opencode path is verified on a live opencode 1.18.25 session. It discovers all 31 public skills through the links and reads a linked `SKILL.md` on request. Agents, commands, and permissions are configured in `opencode.json`.
 
@@ -126,7 +126,7 @@ Discovery is not a promise that every execution capability exists. The shared sk
 ├── plugins/pstack/                   # the plugin itself
 │   ├── .claude-plugin/plugin.json    # Claude Code manifest
 │   ├── .codex-plugin/plugin.json     # Codex manifest (skills: ./skills/)
-│   ├── skills/                       # 52 Agent Skills (shared by all six runtimes; the skills-only install boundary)
+│   ├── skills/                       # 54 Agent Skills (shared by all six runtimes; the skills-only install boundary)
 │   │   ├── poteto-mode/references/licenses/  # generated license texts and skills-scoped notice
 │   │   ├── poteto-mode/references/runtime-contract.md # shared capability vocabulary
 │   │   ├── poteto-mode/references/claude-tools.md # Claude runtime adapter

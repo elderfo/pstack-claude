@@ -235,7 +235,7 @@ After the Sources Consulted block, if the user's `why` question is a precursor t
 
 ## Models
 
-Runtime-neutral model profiles, stamped from `plugins/pstack/models.json`. Resolve each profile through the active runtime adapter. A matching role in the runtime model override sheet wins; see `/setup-pstack`.
+Role defaults, stamped from `plugins/pstack/models.json`. Resolve each profile through the active runtime adapter. A matching role in the runtime model override sheet wins; see `/setup-pstack`.
 
 - why investigators: `primary`
 - why synthesizer: `primary`

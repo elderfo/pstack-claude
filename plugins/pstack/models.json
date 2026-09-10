@@ -1,66 +1,35 @@
 {
   "singleRoleDefault": "primary",
   "panel": ["primary", "strongest", "balanced"],
-  "profiles": {
-    "primary": "Default model for implementation, explanation, and prose",
-    "strongest": "Highest-judgment model for difficult or adversarial work",
-    "balanced": "A distinct model for panel diversity and lower-cost work"
-  },
+  "profiles": {"primary": "Default model for implementation, explanation, and prose", "strongest": "Highest-judgment model for difficult or adversarial work", "balanced": "A distinct model for panel diversity and lower-cost work"},
+  "available": [
+    { "label": "Primary", "slug": "primary"},
+    { "label": "Strongest", "slug": "strongest"},
+    { "label": "Balanced", "slug": "balanced"}
+  ],
   "roles": [
-    { "role": "feature, refactoring", "models": ["primary"], "skill": "poteto-mode" },
-    { "role": "bug-fix", "models": ["strongest"], "skill": "poteto-mode" },
-    { "role": "perf-issue", "models": ["strongest"], "skill": "poteto-mode" },
-    { "role": "hillclimb", "models": ["strongest"], "skill": "poteto-mode" },
-    { "role": "judgment and prose", "models": ["primary"], "skill": "poteto-mode" },
-    { "role": "strongest judgment", "models": ["strongest"], "skill": "poteto-mode" },
-    { "role": "how explorer", "models": ["primary"], "skill": "how" },
-    { "role": "how explainer", "models": ["primary"], "skill": "how" },
-    { "role": "how critics", "models": ["primary", "strongest", "balanced"], "skill": "how" },
-    { "role": "why investigators", "models": ["primary"], "skill": "why" },
-    { "role": "why synthesizer", "models": ["primary"], "skill": "why" },
-    { "role": "reflect tooling", "models": ["primary"], "skill": "reflect" },
-    { "role": "reflect judgment, divergent, synthesizer", "models": ["primary"], "skill": "reflect" },
-    { "role": "arena runners", "models": ["primary", "strongest", "balanced"], "skill": "arena" },
-    { "role": "arena cross-judge pool", "models": ["primary", "strongest", "balanced"], "skill": "arena" },
-    { "role": "swarm workers", "models": ["primary"], "skill": "swarm" },
-    { "role": "architect runners", "models": ["primary", "strongest", "balanced"], "skill": "architect" },
-    { "role": "interrogate reviewers", "models": ["primary", "strongest", "balanced"], "skill": "interrogate" }
+    { "role": "feature, refactoring", "models": ["primary"], "skill": "poteto-mode"},
+    { "role": "bug-fix", "models": ["strongest"], "skill": "poteto-mode"},
+    { "role": "perf-issue", "models": ["strongest"], "skill": "poteto-mode"},
+    { "role": "hillclimb", "models": ["strongest"], "skill": "poteto-mode"},
+    { "role": "judgment and prose", "models": ["primary"], "skill": "poteto-mode"},
+    { "role": "strongest judgment", "models": ["strongest"], "skill": "poteto-mode"},
+    { "role": "how explorer", "models": ["primary"], "skill": "how"},
+    { "role": "how explainer", "models": ["primary"], "skill": "how"},
+    { "role": "how critics", "models": "panel", "skill": "how"},
+    { "role": "why investigators", "models": ["primary"], "skill": "why"},
+    { "role": "why synthesizer", "models": ["primary"], "skill": "why"},
+    { "role": "reflect tooling", "models": ["primary"], "skill": "reflect"},
+    { "role": "reflect judgment, divergent, synthesizer", "models": ["primary"], "skill": "reflect"},
+    { "role": "arena runners", "models": "panel", "skill": "arena"},
+    { "role": "arena cross-judge pool", "models": "panel", "skill": "arena"},
+    { "role": "swarm workers", "models": ["primary"], "skill": "swarm"},
+    { "role": "architect runners", "models": "panel", "skill": "architect"},
+    { "role": "interrogate reviewers", "models": "panel", "skill": "interrogate"}
   ],
   "runtimes": {
-    "claude": {
-      "profiles": {
-        "primary": "claude-opus-5",
-        "strongest": "claude-fable-5-1",
-        "balanced": "claude-sonnet-5"
-      },
-      "available": [
-        { "label": "Fable 5.1", "id": "claude-fable-5-1" },
-        { "label": "Opus 5", "id": "claude-opus-5" },
-        { "label": "Opus 4.8", "id": "claude-opus-4-8" },
-        { "label": "Opus 4.6", "id": "claude-opus-4-6" },
-        { "label": "Fable 5", "id": "claude-fable-5" },
-        { "label": "Sonnet 5", "id": "claude-sonnet-5" },
-        { "label": "Sonnet 4.6", "id": "claude-sonnet-4-6" },
-        { "label": "Haiku 4.5", "id": "claude-haiku-4-5" }
-      ]
-    },
-    "codex": {
-      "profiles": {
-        "primary": "active",
-        "strongest": "highest-judgment",
-        "balanced": "distinct"
-      },
-      "singleRoleExample": "gpt-6-astra",
-      "panel": ["gpt-6-astra", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]
-    },
-    "pi": {
-      "profiles": {
-        "primary": "active",
-        "strongest": "highest-judgment",
-        "balanced": "distinct"
-      },
-      "singleRoleExample": "openai/gpt-6-astra",
-      "crossVendorPanel": ["anthropic/claude-fable-5-1", "openai/gpt-6-astra", "anthropic/claude-sonnet-5"]
-    }
+    "claude": {"profiles": {"primary": "claude-opus-5", "strongest": "claude-fable-5-1", "balanced": "claude-sonnet-5"}, "available": [{"label": "Fable 5.1", "id": "claude-fable-5-1"}, {"label": "Opus 5", "id": "claude-opus-5"}, {"label": "Opus 4.8", "id": "claude-opus-4-8"}, {"label": "Opus 4.6", "id": "claude-opus-4-6"}, {"label": "Fable 5", "id": "claude-fable-5"}, {"label": "Sonnet 5", "id": "claude-sonnet-5"}, {"label": "Sonnet 4.6", "id": "claude-sonnet-4-6"}, {"label": "Haiku 4.5", "id": "claude-haiku-4-5"}]},
+    "codex": {"profiles": {"primary": "active", "strongest": "highest-judgment", "balanced": "distinct"}, "singleRoleExample": "gpt-6-astra", "panel": ["gpt-6-astra", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"], "strongestRoleExample": "gpt-6-astra", "panelQuad": ["gpt-6-astra", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]},
+    "pi": {"profiles": {"primary": "active", "strongest": "highest-judgment", "balanced": "distinct"}, "singleRoleExample": "openai/gpt-6-astra", "crossVendorPanel": ["anthropic/claude-fable-5-1", "openai/gpt-6-astra", "anthropic/claude-sonnet-5"]}
   }
 }

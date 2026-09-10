@@ -74,7 +74,7 @@ Short list, no preamble:
 
 ## Models
 
-Runtime-neutral model profiles, stamped from `plugins/pstack/models.json`. Resolve each profile through the active runtime adapter. A matching role in the runtime model override sheet wins; see `/setup-pstack`.
+Role defaults, stamped from `plugins/pstack/models.json`. Resolve each profile through the active runtime adapter. A matching role in the runtime model override sheet wins; see `/setup-pstack`.
 
 - reflect tooling: `primary`
 - reflect judgment, divergent, synthesizer: `primary`

@@ -14,6 +14,8 @@ Listing the callers is not the job. The agent can grep those in a second. The jo
 
 ## Don't trust your own writeup
 
+a brief that asserts something about existing code is a hypothesis, not a fact. Run the smallest real check before designing against it.
+
 A blast-radius writeup that sounds right is worthless. It reads as convincing whether or not it's true, and that is the trap you are walking into. So don't hand back the writeup. Find the one or two facts the whole thing depends on and prove them by running code. Words are where you start, not what you ship.
 
 ### How sure are you

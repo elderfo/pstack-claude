@@ -4,12 +4,16 @@ import { existsSync, readFileSync, readdirSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, join, posix, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
-function markdownFiles(dir) {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+export function walk(dir) {
+  return readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name)).flatMap((entry) => {
+    if (entry.name === "node_modules" || entry.name === ".git") return [];
     const path = join(dir, entry.name);
-    if (entry.isDirectory()) return markdownFiles(path);
-    return entry.name.endsWith(".md") ? [path] : [];
+    return entry.isDirectory() ? walk(path) : [path];
   });
+}
+
+export function markdownFiles(dir) {
+  return walk(dir).filter((path) => path.endsWith(".md"));
 }
 
 function markdownTargets(text) {

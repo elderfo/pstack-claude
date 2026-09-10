@@ -47,7 +47,7 @@ import {
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { pathIsInside, validateProsePaths, validateSkillsTree } from "./validate-skills.mjs";
+import { markdownFiles, pathIsInside, validateProsePaths, validateSkillsTree } from "./validate-skills.mjs";
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -157,11 +157,10 @@ export function assertChangesHeading(changes, version) {
     .split("\n")
     .some((line) => line === `## ${version}` || line.startsWith(`## ${version} `));
   if (!found) {
-    throw new Error(
-      `CHANGES.md has no "## ${version}" heading. Every version needs a CHANGES entry; ` +
-        `a bump without one (or an entry without a bump) ships a release nobody can read about.`,
-    );
+    throw new Error(`CHANGES.md has no "## ${version} - <title>" heading.`);
   }
+  const malformed = changes.split("\n").filter((line) => /^## \d+/.test(line) && !/^## \d+\.\d+\.\d+ - .+/.test(line));
+  if (malformed.length) throw new Error(`read "## <version> - <title>":\n${malformed.join("\n")}`);
 }
 
 export function validateCodexMarketplace(text, { expectedName, pathExists }) {
@@ -232,6 +231,141 @@ export function publicSkills(skillsDir) {
       }
       return { name, menu };
     });
+}
+
+// Derive the portable frontmatter shape used when syncing upstream skills.
+// Body prose remains upstream text; runtime mappings stay in the adapters.
+export function deriveSkill(file, text, models = loadModels()) {
+  const skill = file.match(/(?:^|\/)skills\/([^/]+)\/SKILL\.md$/)?.[1];
+  if (!skill) return text;
+  const replacement = skill.startsWith("principle-") ? "\nuser-invocable: false\n" : "\n";
+  let out = text.replace("\ndisable-model-invocation: true\n", replacement);
+  if (skill !== "interrogate" && !out.includes("\n## Models\n") && (models.roles ?? []).some((role) => role.skill === skill)) {
+    out = `${out.replace(/\n*$/, "\n\n")}## Models\n\n${modelsSection((models.roles ?? []).filter((role) => role.skill === skill))}\n`;
+  }
+  return out;
+}
+
+export function resolveModels(models) {
+  return { ...models, roles: (models.roles ?? []).map((role) => ({
+    ...role,
+    models: role.models === "panel" ? models.panel : role.models,
+  })) };
+}
+
+export function loadModels() {
+  const raw = resolveModels(JSON.parse(readFileSync(join(repo, "plugins/pstack/models.json"), "utf8")));
+  const claude = raw.runtimes?.claude;
+  const codex = raw.runtimes?.codex;
+  return {
+    ...raw,
+    available: raw.available ?? (claude?.available ?? []).map(({ label, id }) => ({ label, slug: id })),
+    singleRoleDefault: raw.singleRoleDefault,
+    codex: {
+      singleRoleExample: codex?.singleRoleExample,
+      strongestRoleExample: codex?.strongestRoleExample ?? "gpt-6-astra",
+      panelQuad: codex?.panelQuad ?? codex?.panel,
+    },
+  };
+}
+
+export const section = (title) => (lines) => {
+  const start = lines.findIndex((line) => line === `## ${title}`);
+  if (start < 0) return null;
+  let end = start + 1;
+  while (end < lines.length && !lines[end].startsWith("## ")) end++;
+  return [start + 1, end];
+};
+
+export const fenceUnder = (heading, language) => (lines) => {
+  const start = lines.findIndex((line) => line.startsWith(heading));
+  if (start < 0) return null;
+  const open = lines.findIndex((line, index) => index > start && line === `\`\`\`${language}`);
+  if (open < 0) return null;
+  const close = lines.findIndex((line, index) => index > open && line === "```");
+  return close < 0 ? null : [open + 1, close];
+};
+
+export const tableRows = (header, rowPrefix) => (lines) => {
+  const start = lines.indexOf(header);
+  if (start < 0) return null;
+  let end = start + 2;
+  while (end < lines.length && lines[end].startsWith(rowPrefix)) end++;
+  return [start + 2, end];
+};
+
+export function regions(models) {
+  const skills = new Set((models.roles ?? []).map((role) => role.skill));
+  return [...skills].map((skill) => ({
+    file: `plugins/pstack/skills/${skill}/SKILL.md`,
+    locate: section("Models"),
+    render: () => modelsSection((models.roles ?? []).filter((role) => role.skill === skill)),
+  }));
+}
+
+export function applyRegions(file, text, models, { strict = true } = {}) {
+  const lines = text.split("\n");
+  for (const region of regions(models).filter((item) => item.file === file)) {
+    const range = region.locate(lines);
+    if (!range) {
+      if (strict) throw new Error(`${file}: no anchor for the Models section to stamp`);
+      continue;
+    }
+    lines.splice(range[0], range[1] - range[0], ...region.render().split("\n"));
+  }
+  return lines.join("\n");
+}
+
+export function strayModelSlugs(file, text, models) {
+  const lines = text.split("\n");
+  const owned = regions(models).filter((region) => region.file === file).map((region) => region.locate(lines)).filter(Boolean);
+  const found = [];
+  lines.forEach((line, index) => {
+    if (!/claude-(?:opus|fable|sonnet|haiku)[0-9a-z.-]*/.test(line)) return;
+    if (owned.some(([start, end]) => index >= start && index < end)) return;
+    found.push(`${file}:${index + 1}: ${line.trim()}`);
+  });
+  return found;
+}
+
+export function validatePluginLayout(pluginRoot) {
+  const skillsRoot = join(pluginRoot, "skills");
+  if (existsSync(join(pluginRoot, "commands"))) throw new Error("plugins/pstack/commands/ exists");
+  for (const file of markdownFiles(skillsRoot)) {
+    const text = readFileSync(file, "utf8");
+    const frontmatter = text.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "";
+    if (frontmatter.includes("disable-model-invocation: true")) throw new Error(`${relative(pluginRoot, file)}: disable-model-invocation: true breaks`);
+    const name = file.split("/").slice(-2, -1)[0];
+    if (name.startsWith("principle-") && !frontmatter.includes("user-invocable: false")) {
+      throw new Error(`${relative(pluginRoot, file)}: principle leaves carry user-invocable: false`);
+    }
+    const match = text.match(/subagent_type:\s*["']?([a-z0-9-]+)["']?/);
+    if (match && existsSync(join(pluginRoot, "agents", `${match[1]}.md`))) {
+      const line = text.slice(0, match.index).split("\n").length;
+      throw new Error(`${relative(pluginRoot, file)}:${line}: subagent_type: "${match[1]}" (use "pstack:${match[1]}")`);
+    }
+  }
+}
+
+export function readmeCommands(readme, skillNames) {
+  const start = readme.split("\n").findIndex((line) => line === "| command | use it when |");
+  if (start < 0) throw new Error("table header not found");
+  const rows = [];
+  const lines = readme.split("\n");
+  for (let i = start + 2; i < lines.length && lines[i].startsWith("|"); i++) {
+    const match = lines[i].match(/^\| `\/([^`]+)` \| (.+) \|$/);
+    if (!match) throw new Error(`row ${i - start - 1} is not a slash-command row`);
+    rows.push({ name: match[1], menu: match[2] });
+  }
+  const names = skillNames.map((skill) => typeof skill === "string" ? skill : skill.name);
+  const expected = new Set(names);
+  const actual = new Set(rows.map((row) => row.name));
+  const missing = names.filter((name) => !actual.has(name));
+  const extra = rows.map((row) => row.name).filter((name) => !expected.has(name));
+  if (missing.length || extra.length) {
+    throw new Error(`row without a skill: ${extra.join(", ")}; skill without a row: ${missing.join(", ")}`);
+  }
+  return rows;
 }
 
 export function promptStub({ name, menu }) {
@@ -328,10 +462,10 @@ export function validateModelPolicy(models) {
   if (profiles.size === 0) throw new Error("models.json: profiles must not be empty");
   const aliases = new Set(["inherit-parent", "auto"]);
   for (const role of models.roles ?? []) {
-    if (!role.role || !role.skill || !Array.isArray(role.models) || role.models.length === 0) {
+    if (!role.role || !role.skill || !(role.models === "panel" || (Array.isArray(role.models) && role.models.length > 0))) {
       throw new Error("models.json: every role needs role, skill, and at least one model profile");
     }
-    for (const profile of role.models) {
+    for (const profile of role.models === "panel" ? models.panel : role.models) {
       if (!profiles.has(profile) && !aliases.has(profile)) {
         throw new Error(`models.json: role "${role.role}" references unknown profile "${profile}"`);
       }
@@ -371,7 +505,7 @@ export function validateModelPolicy(models) {
 export function modelsSection(roles) {
   const bullets = roles.map((r) => `- ${r.role}: ${codeList(r.models)}`).join("\n");
   return (
-    "Runtime-neutral model profiles, stamped from `plugins/pstack/models.json`. " +
+    "Role defaults, stamped from `plugins/pstack/models.json`. " +
     "Resolve each profile through the active runtime adapter. A matching role in the runtime model override sheet wins; see `/setup-pstack`.\n\n" +
     bullets
   );
@@ -618,7 +752,9 @@ export function validateHooks(hooksJson, { statOf }) {
         for (const t of targets) {
           const st = statOf(t);
           if (!st) problems.push(`${event}: ${t} does not exist`);
-          else if (!(st.mode & 0o111)) problems.push(`${event}: ${t} is not executable`);
+          else if (m[1] === t && hook.command.trim().startsWith(`"${"${CLAUDE_PLUGIN_ROOT}"}`) && !(st.mode & 0o111)) {
+            problems.push(`${event}: ${t} is not executable`);
+          }
         }
       }
     }
@@ -647,8 +783,9 @@ function main() {
     }
   }
 
-  const models = JSON.parse(readFileSync(join(repo, "plugins/pstack/models.json"), "utf8"));
-  validateModelPolicy(models);
+  const rawModels = JSON.parse(readFileSync(join(repo, "plugins/pstack/models.json"), "utf8"));
+  validateModelPolicy(rawModels);
+  const models = resolveModels(rawModels);
   const skillsDir = join(repo, "plugins/pstack/skills");
 
   const bySkill = new Map();

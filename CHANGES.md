@@ -2,49 +2,97 @@
 
 This port applies the Cursor → Claude Code substitutions in skill bodies. Earlier drafts left them flagged; this revision resolves them. A later pass added a Codex build that shares the same skills; see [Codex port](#codex-port) below.
 
-## Unreleased
+## 0.9.28 - discovery keywords on both plugin manifests
 
-## 0.9.20 - 2026-09-05
+The two plugin manifests carried seven keywords, all of which name the project or its own vocabulary: `pstack`, `poteto-mode`, `workflow`, `principles`, `agent-style`, `subagents`, `unslop`. A reader who searches any of them already knows the plugin exists. Nine terms describing what the skills do and where they run join them: `claude-code`, `skills`, `tdd`, `code-review`, `parallel-agents`, `codex`, `opencode`, `gemini-cli`, `prime-agent`. The four non-Claude runtimes are each named where the previous list named none. Metadata only: no skill text, tool behavior, or upstream pin changes. The pin remains at `e8d856f`.
 
-### Shared core and native-runtime fixes
+## 0.9.27 - the sync tool runs the three-way merge itself
 
-Preserve the shared-core migration and put concrete execution in the Claude, Codex and Pi adapters. General/named-agent mapping, parent-model alias precedence, explicit-only authoring, supported effort and fresh/fork context now have native contracts and focused deterministic fixtures. Model panels resolve jointly, keep deliberate duplicates and report reduced diversity; current examples are not access guarantees.
+`tools/sync.mjs` classified every file it could not write cleanly as `manual`, one word covering three unrelated facts: upstream never touched the file and the port forked it, upstream changed it and the fork does not overlap, or upstream changed it and the fork does. The operator recovered the fact by diffing the two upstream trees by hand, once per file, on every sync. At the `e8d856f` sync the tool listed 57 manual files. 24 of them were untouched upstream, 9 were mergeable by machine, and 24 were real conflicts.
 
-- `no-comments` and the shared/generated `comment-sicko` prompts now separate proposed from applied deletions: the report-only child proposes, the parent reviews, applies, restores and re-reviews. Legal/public-API/safety exceptions remain review gates.
-- `show-me-your-work` loads the contract. The explicit-file session evidence parser preserves Claude/Pi/Codex tool records, validates workspace/schema, and handles Pi branch selection without scanning unrelated stores or replaying exact compacted context.
-- Worktree cleanup no longer reads transcripts or marks unknown activity safe; independent session/child checks and human deletion approval remain mandatory.
-- Pi's mandate now names the shared contract. Background readiness inspection is distinct from finite-job completion; allowlist/provider discovery, asynchronous workflow ordering and infrastructure-failure boundaries are explicit. Generated Pi profiles no longer force high thinking.
-- Codex gets optional generated native TOML templates and an explicitly empty native hook set so the Claude hook is not auto-imported. Current native subagent defaults, skill invocation policy, plugin/desktop/web access boundaries and model/effort precedence replace legacy assumptions.
-- Setup model-block replacement is idempotent and rejects legacy unmarked pasted sheets for reconciliation, including sheets with removed overrides. Shared playbooks reconcile retained children before respawning rather than assuming restart killed all work. The orchestration inbox now uses the runtime scheduling capability, with an unquoted native-workflow regression in the neutrality gate. Worker briefs remain self-contained in both fresh and forked contexts.
-- Panel resolution returns dispatch-ready selections with parent alias provenance and a model/effort snapshot. Composition tests cover both aliases across all runtimes, Codex effort conflicts, Pi thinking overrides, and Claude omission semantics.
-- Session evidence opens explicit files nonblocking before descriptor-based regular-file validation. Timeout-isolated FIFO and symlink-to-FIFO regressions preserve bounded reads and descriptor cleanup.
-- Adapter model-reference validation derives allowed IDs from model policy and narrowly justified contextual references. Unknown IDs and malformed model/effort tokens fail outside generated sections without banning native instructions or changing license texts. Contextual exceptions cover only the explanatory reference occurrence, not other references on the same line. The generator and focused fixtures cover documented model/effort syntax. Path normalization preserves adapter validation on Windows.
+Each fact is now its own state. A file upstream left alone is reported as a forked count and left alone. Non-overlapping edits go through `git merge-file` and are written with kind `merged`. Only a real conflict reaches the operator, carrying its hunk count. Binaries that differ three ways and files upstream deleted that the port had edited join the same `conflicts` list under a typed reason. A file that is new upstream but already present locally has no common ancestor, so it merges against an empty base and surfaces as a conflict. `report.manual` is gone with no compatibility alias. The all-or-nothing invariant holds: merged buffers are denylist-scanned like any other write, and a hit or a dry run still leaves the tree untouched. Rerunning the previous pin through the new tool prints 24 forked, 9 merged, and 24 conflicts in place of the 57 bare filenames.
 
-Validation covers deterministic and static checks plus existing local script suites. Fresh native inference and plugin-install smoke tests remain unverified. Version 0.9.20 synchronizes the plugin manifests and Pi package so installers can recognize the update after release.
+Two cleanups in the same rewrite. An `exclude` entry's trailing slash never changed the match, since walked paths never end in one, so the entry is normalized once and the comment no longer claims two rules. One `carried(dir)` helper walks, relativizes, and filters both trees, replacing the duplicated pair in each loop. `plugins/pstack/models.json` returns to one row per entry, 38 lines rather than the 161 a `JSON.stringify` rewrite produced, and `tests/models.test.mjs` now fails on any exploded rewrite. The `generalPurpose` substitution gains the rationale every other rule already carried. The upstream pin remains at `e8d856f`.
 
-## 0.9.19 — native Pi package
+## 0.9.26 - sync to upstream e8d856f, the September density pass
 
-Pi installs this repository as a package of its own. The root `package.json` carries the `pi-package` keyword and a `pi` block naming one extension, the shared `plugins/pstack/skills/` tree, 31 generated prompt templates, and two generated pi-subagents agent definitions. `pi install git:github.com/michael-denyer/pstack-claude` is the entire install. Nothing is duplicated: `pi.skills` points at the same tree the other five runtimes read, and the generator refuses any `skills` entry that is not that tree, so a second copy cannot appear and drift.
+The upstream pin moves from `7314f72` to `e8d856f`, upstream's deletion-only density and mannered-prose pass across the skill tree, still versioned v0.14.8 upstream. Two new principle leaves arrive, `principle-attack-the-premise` and `principle-test-behavior-not-implementation`, indexed in `poteto-mode`. The `how` skill loses its Critique Mode along with `references/critic-prompt.md` and `references/critique-rubric.md`; the `how critics` role leaves `models.json`, the override-sheet example, and the README panel row. `opening-a-pr` and `technical-writing` carry upstream's PR-body briefing rules. Port-side policy is unchanged where it diverges from upstream: the autopilot playbooks still stop at merge-ready for the operator's click, `shipping` keeps the watcher-owned blocker classification, and `feature` keeps the per-delegate worktree rule.
 
-**The mandate is injected by an extension, not a hook.** `plugins/pstack/.pi-plugin/extensions/pstack.ts` appends the mandate text to the system prompt on `before_agent_start`. Claude Code's `SessionStart` hook fires once per session and needs `clear|compact` matchers so a compaction does not erase the routing text. Pi rebuilds the system prompt for every turn, so appending there survives compaction with no matcher, and the user edits no `AGENTS.md` of their own. Children dispatched through pi-subagents run with `PI_SUBAGENT_CHILD=1`, and the extension registers nothing for them, because `poteto-mode` governs the orchestrating session and has already shaped the dispatch. Opting out is disabling one extension, not deleting a file a plugin update restores.
+`tools/upstream.json` gains an `exclude` list per component for the paths the port deliberately does not carry (`.cursor-plugin/`, `assets/`, `automations/`, `docs/`, `skills/make-bot-ui/`, upstream's `README.md`, `LICENSE`, and `.gitignore`). `tools/sync.mjs` skips them on both walks, so a real run at the pinned SHA now exits 0 instead of failing on Benny's `.cursor/` paths. One new substitution rewrites `generalPurpose` to `general-purpose`. Measured with `bun tools/sync.mjs pstack e8d856f`: 34 files written clean, 2 deleted, 35 excluded; 33 forked files that upstream also touched were merged three-way against the port's derivation of both upstream trees, 9 clean and 24 by hand.
 
-The mandate now exists once per injecting runtime. `hooks/session-start-context.md` keeps the Claude Code wording and `.pi-plugin/session-start-context.md` carries the Pi wording, which drops the `Skill` tool sentence, names the direct-entry skills without a `pstack:` prefix, and points at the Pi runtime map. Both are hand-maintained, so a change to the routing is a change to both files.
+## 0.9.25 - fix Codex entry points, sync validation, and stack discovery
 
-`poteto-mode/references/pi-tools.md` is the Pi runtime map, structured like `codex-tools.md`: tool actions, subagent policy, named agents, model names, Claude built-ins, MCP, background work, sessions, the vendored scripts, and the instructions file. It records what degrades without each of the three companion packages and `pi-web-access`, that Pi has no todo tool, that `AskUserQuestion`'s approval gate is the model's to hold, and that parallel fan-out is one `subagent({ workflowScript })` call rather than N dispatches. Fourteen skills' **Platform note** lines and `poteto-mode`'s Platform Adaptation paragraph gained one sentence pointing at it. Neither map is a cross-runtime table, and both now say so.
+Duplicate-head rejection is limited to branches traversed in the requested PR stack. The two autopilot playbooks keep the standing-objective instruction without naming the unsupported command, so their installed text passes the expanded sync denylist. Fourteen skill entry points again link to the Codex mapping, preserving direct invocation on skills-only installs.
 
-The generator absorbed Pi instead of growing a second copy of the Codex path. A `PROMPT_ADAPTERS` table drives one stamp-and-prune loop per runtime, `PI_AGENTS` derives the two Pi agent definitions from `plugins/pstack/agents/` (with `comment-sicko` allowlisted without `edit` or `write`, since it is report-only), `models.json` gains a `pi` block that stamps the map's Model names section, and `validatePiManifest` fails the run when a declared `pi` path does not exist. `package.json` joins the manifests that take their version from `VERSION`. `tests/pi-extension.test.mjs` covers both halves of the extension contract: the mandate reaches the system prompt, and a child session registers no handler.
+These are deliberate port-side corrections. The upstream pin remains at `7314f72`.
 
-`/setup-pstack` on Pi writes `~/.pi/agent/pstack-models.md` with `provider/model` IDs and loads by pasting into `~/.pi/agent/AGENTS.md`, the same mechanism Codex uses. Because a Pi model ID names its provider, the multi-model panels in `arena`, `architect`, `interrogate`, and `how` can be genuinely cross-vendor when a second provider is configured. That is the diversity the 0.9.11 Claude build recorded as lost in translation.
+## 0.9.24 - close the full-code review findings
 
-`docs/UPSTREAM_SYNC_PLAYBOOK.md` is new. It numbers the sync steps for a maintainer or an agent, names the fifteen files whose Platform notes a manual merge has to re-apply, and ends with a table of every port-owned surface and whether the generator or a human owns it.
+The PR watcher reads every review-thread page, rejects non-advancing cursors, and checks that the PR head stayed unchanged while collecting evidence. Ready verdicts include that head SHA; a missing commit no longer looks like an explicitly absent rollup. Stack discovery keeps fork branches separate from repository-local branches and rejects cycles. One monotonic deadline covers discovery, subprocesses, polling, and retry delays; an expired command is killed and reaped before the watcher exits.
 
-No skill workflow changes. Every skill body is the same work in the same order; the Pi additions are install, routing, and name resolution. Verified on Pi 0.84.4 with the package loaded through `pi -e`: the mandate is present in the system prompt, `poteto-mode` and a `principle-*` leaf are listed as skills, a session started with `PI_SUBAGENT_CHILD=1` gets no mandate, the `/bro` prompt template expands to its skill instruction, and `subagent({ agent: "comment-sicko" })` resolves the package-shipped agent and returns its output. `pi install git:...` itself was not run.
+Upstream sync validates the planned installed text before writing or deleting anything. Unchanged files and manual local contents are scanned too, so retrying a rejected sync cannot bypass validation. Worktree audit parses complete NUL-delimited Git records, preserves spaces in paths, and requires ancestry or an exact merged PR head before suggesting removal. Closed PRs, commits added after a merge, and failed probes do not establish safety.
 
-## 0.9.18 — plugin author names the port maintainer
+The orchestration store serializes complete mutations per handle. Concurrent additions and updates no longer overwrite each other; a failed mutation does not poison the queue. Closing rejects new operations, drains accepted writes, and releases the process lock once. Frontier discovery, status rendering, and shared types leave the oversized store module, with existing public imports and file formats preserved.
+
+These are deliberate port-side corrections to vendored runtime behavior. The upstream pin remains at `7314f72`.
+
+## 0.9.23 - sync boundary in code, generator region model, dead layers removed
+
+Fixes from a whole-repo code quality review. The upstream pin stays at `7314f72`. Prose in upstream-owned skills changes only where a port addition is removed.
+
+The sync tool now compares a local file against the port's full derivation of the upstream file, not just the string substitutions. `deriveSkill` in `tools/generate.mjs` drops `disable-model-invocation` on a public skill, swaps it for `user-invocable: false` on a `principle-*` leaf, appends the `## Models` section as the last H2 where upstream has none, and stamps the generator's regions; `tools/sync.mjs` applies it before comparing. The `menu-description` key leaves all 31 public `SKILL.md` files: the README slash-command table is now the source of the Codex slash-menu text and order, and `readmeCommands` checks its row set against the public skills by name. The fourteen hand-written Platform notes leave the skills; the generated Codex stub carries the generic sentence and `codex-tools.md` gains a Per-skill notes table. Eight substitution rules encode rewrites the port applied by hand on every sync, and the `.cursor/rules/` rule no longer mangles the override-sheet path. Measured with `bun tools/sync.mjs pstack 7314f72 --dry-run`: the pstack component goes from 43 clean and 87 manual-merge files to 76 clean and 47; cursor-team-kit from 0 and 7 to 6 and 1. The sync also deletes files upstream removed when the port never edited them, reports structured entries instead of prefixed strings, and offers `--dry-run`.
+
+`tools/generate.mjs` locates every stamped region once. `regions(models)` lists each owned span as file, locator, and renderer; `applyRegions` stamps from it and the stray-slug scan exempts from it, so a `claude-*` slug under a `## Models` heading in a file the generator does not own is now a stray. The four static layout invariants (no `commands/`, no `disable-model-invocation`, hidden principle leaves, namespaced agent dispatch) throw from `agentSkills` and `validatePluginLayout` inside the generator; `tests/skill-collision-repro.sh` keeps only its behavioral leg and the `invariants` CI job is gone. `validateProsePaths` resolves each backticked path against its file and the plugin root and fails on a real file outside the skills tree, replacing a verb regex and a prefix list that matched no live token. One directory walker in `tools/validate-skills.mjs` serves all three tools and skips `node_modules`, which had made `bun test tests/` and the generator fail on any machine that ran the vendored tooling's install. `models.json` writes the panel once (`"models": "panel"`).
+
+Layers built for conditions that no longer hold are removed. The SessionStart hook is one `cat` command in `hooks.json` with `shell: bash`; `run-hook.cmd`, `session-start`, and `LICENSE-superpowers` are gone. `bootstrap.ts` no longer re-executes the process after installing (both CLIs already defer the `commander` import) and installs production dependencies only, 244 KB instead of 37 MB. The `commander` pin follows upstream again; Dependabot's npm entry and `dependabot-lockfile.yml` are gone. The `scripts` typecheck covers `orch/` and `bootstrap.ts` through a root `tsconfig.json`. The skills-only CI job installs for one agent and stops at the diff; the `actions-pinned` grep that restated zizmor's audit is gone. `worktree-audit.sh` reports prunable worktrees as such instead of as `review` rows with blank columns, and runs on GNU coreutils. `babysit` links the upstream `bugbot-triage.md` instead of a drifted copy, delegates to `fix-ci`, `fix-merge-conflicts`, and `get-pr-comments`, and no longer claims poteto-mode opens it on PR open.
+
+New tests: `tests/generate.test.mjs` (locators, regions, `deriveSkill`, `readmeCommands`, `stampVersion`, `assertChangesHeading`, `validateCodexMarketplace`, `validateHooks`), `tests/models.test.mjs` (schema, panel by reference, every role label named by its skill), `tests/readme-facts.test.mjs` (the counts and upstream SHA the README states), `tests/skill-references.test.mjs` (prose skill names resolve, Principles index equals the leaves), and fixture cases in `tests/sync.test.mjs` and `tests/invariants.test.mjs` for deletion propagation, dry run, derivation, and each invariant.
+
+Findings left to upstream rather than forked: the `orch/store.ts` decomposition and its hardwired Graphite adapter, the duplicated `countLine`, conflict predicate, and URL check, and `classifyPr` as a one-row special case of the stack decision.
+
+## 0.9.22 - Codex counterpart for the Fable roles
+
+Lands #53 (contributed by @tlmader) on top of #54. `models.json` gains `codex.strongestRoleExample`, and `codexModelNamesSection` in `tools/generate.mjs` renders a bullet for every role whose single Claude model is not the single-role default (today `bug-fix`, `perf-issue`, `hillclimb`, and `strongest judgment`), pointing them at `gpt-6-astra`. The list is derived from the role table, so a role moving on or off Fable restamps the Codex guidance with it. The single-role example returns to `gpt-5.6-sol` as the Opus counterpart; the Astra, Sol, Terra, Luna quad from #54 is unchanged. `tests/agent-skills.test.mjs` renders the section from the real `models.json` and asserts the bullet names all four roles.
+
+## 0.9.21 - agent mechanics and production-session gaps
+
+Fixes from #58 and the seven judgment gaps in #59 (both by @synergenix19), reported from a poteto-mode session that ran a real backend change through review, merge, deploy, and `reflect`. The upstream pin stays at `7314f72`.
+
+Every dispatch of a plugin agent names it `pstack:poteto-agent` or `pstack:comment-sicko`. A plugin's agents register under the plugin namespace and the bare name errors on install. #58 covered the poteto-mode site; this release covers the other three, and `tests/skill-collision-repro.sh` now fails on any bare `subagent_type` that matches a file in `plugins/pstack/agents/`.
+
+`reflect` step 1 runs `skills/reflect/scripts/find-transcript.mjs` instead of a scan re-derived each session. The finder covers the flat, nested, and subagent layouts newest first, streams each candidate, and stops at its first `user` record; the first line of a transcript is session metadata, which is why the old first-line check never matched. `tests/find-transcript.test.mjs` covers the layouts, string and block content, a truncated trailing line, and the CLI exit codes.
+
+poteto-mode's Subagents section says to stop an abandoned agent and confirm the stop before re-delegating, because `completed` in the agent listing means notified rather than exited. `feature.md` gives every file-writing delegate its own worktree. `opening-a-pr.md` drains the live agent roster, grandchildren included, before any commit, merge, or deploy from a worktree. `principle-prove-it-works` verifies the process behind an outcome and requires the failure content of a red check, not the assertion line; `tdd` step 4 says the same. `recall` sweeps every location the project's rules name before reporting anything as unrecorded. `blast-radius` triggers on a brief that asserts something about existing code, before design. poteto-mode's triggers add loading a managed platform's skill before its CLI, and choosing a finding's artifact by severity rather than by where it turned up. `tests/skill-rules.test.mjs` pins each of these sentences so a manual upstream merge cannot drop one unnoticed.
+
+## 0.9.20 - plan and shipping fixes
+
+Follow-up fixes for the PR 55 review. These change upstream-derived behavior and are deliberate local corrections pending a future upstream sync. The upstream pin stays at `7314f72`.
+
+`multi-phase-plan.md` delegates base preparation and topology ownership to the selected execution playbook. Its shared skeleton no longer tells every stacked child to rebase onto trunk.
+
+`shipping.md` preserves the GitHub watcher's blocker classification, including review gates and unresolved threads. Shipping waits through `WAITING`, handles blockers through Babysit, and confirms the merge after `COMPLETE` before advancing the stack. It no longer maintains a second failure classifier in prose.
+
+`check-plan.mjs` requires checkboxes in every program subsection and in Close the program. It tracks fenced code by delimiter and length so tilde fences and nested Markdown examples stay exempt from prose punctuation checks. CLI regression tests exercise the shipped skeleton, missing checklists, fenced examples, and prose after closing fences.
+
+## 0.9.19 - sync to upstream v0.14.8
+
+Catches the port up with upstream `cursor/plugins/pstack` from `4612556` (v0.14.2) to `7314f72` (v0.14.8). Seven upstream commits; three carry content the port ships. Skill count stays at 52.
+
+**Forge-neutral stack playbooks (`23a56e2`).** Upstream removed Graphite (`gt`) from `shipping`, `babysit`, `autopilot-full`, `autopilot-stack`, and `opening-a-pr`, and lands stacks as base-branch chains through the GitHub CLI, or Origin's CLI when `command -v origin` succeeds. The port takes that rewrite in full. Shipping now prepares and lands one bottom PR at a time, records a stable `git patch-id` per verdict, and treats GitHub `autoMergeRequest` as one PR's state rather than stack readiness. Babysit gains forge-specific stop conditions and a fixed `gh api --method POST ... --input <payload.json>` shape for thread replies. Both autopilots open every PR ready within about 15 minutes with a `decisions.tsv` trail, and Autopilot-full adds a regression lane against trunk to its swarm verdict. Origin is a forge CLI gated on its own presence, not a Cursor IDE primitive, so its branches stay verbatim. The port's own translations stay on top: background subagents in their own worktrees for Cursor cloud agents, `verify` / `run` for `control-ui` / `control-cli`, the watcher path under the installed plugin, and the operator's merge click on every Autopilot-full PR (#27). `gt` remains only in `orchestrate` and the `orch` script, both unchanged upstream; the README dependency note narrows to match.
+
+**Multi-phase plan as a checked skeleton (`bdf7aa3`).** `playbooks/multi-phase-plan.md` replaces the pointer to `references/plan.md`, which is deleted, with a seven-step procedure and a fenced plan skeleton, and the new `scripts/check-plan.mjs` enforces the skeleton's shape. Translations in the playbook: the ten live lanes run on the configured `swarm workers` model instead of `grok-4.6-fast-xhigh`; `control-ui` / `control-cli` become `verify` / `run`; the `/goal` becomes the standing orders plus the todolist; `git show origin/main:pstack/skills/...` re-reads become reads from the installed plugin; a cloud VM per lane becomes a worktree per lane; the agent store is `~/.claude/orchestrate/<slug>/`. `check-plan.mjs` carries the two matching constant edits, the lane sentence and the program markers (`standing orders`, `installed plugin`). The skeleton passes its own checker (`node scripts/check-plan.mjs` over the fenced block, 27 boxes, 0 problems).
+
+**`typescript-best-practices`.** Takes upstream's `paths: ["**/*.ts", "**/*.tsx"]` frontmatter, a Claude Code key that scopes automatic loading to matching files, the `Schemas before guards` row, and the branded-types wording "validate once at the boundary". `references/patterns.md` gains 22 lines upstream and is copied clean.
+
+**Deliberately not ported.** `make-bot-ui` (`799151d`, `6fecddb`) drives a Grok Bot webhook routine through Cursor's `update_state` tool and Tailscale, the same category as Benny. `assets/logo.png` (`efa2a53`, `7314f72`) is the Cursor marketplace logo. `disable-model-invocation: true` on `how`, `why`, `unslop`, and `typescript-best-practices` (`73f8be4`) is rejected by the 0.9.8 invariant, which the README now records. Upstream's Fable 5.1 slug bumps (`23a56e2`) stay out of skill prose; model defaults are stamped from `models.json`. `docs/guide/` edits are out with the guide. The single `cursor-team-kit` commit since the pin (`c5b04a5`) touches none of the seven imported skills, so that pin does not move.
+
+**Sync tooling note.** `tools/sync.mjs` writes the whole upstream tree before the denylist scan, so a run against a pin that adds excluded paths (`automations/`, `docs/`, `.cursor-plugin/`, `assets/`, the upstream `README.md` and `LICENSE`) exits 1 on hits inside those paths and leaves the pin unadvanced. This sync removed them by hand and set the pin directly. An exclusion list in `upstream.json` would let the tool finish on its own; not done here.
+
+## 0.9.18 - plugin author names the port maintainer
 
 `plugin.json` and the marketplace entry listed Lauren Tan as `author`, so the Claude Code plugin UI credited the upstream author for the port. The `author` and `owner` fields now name Michael Denyer with an email and GitHub URL. Lauren Tan's authorship of the original pstack stays in every description, the README, and the vendored license texts.
 
-## 0.9.17 — a self-contained skills-only install
+## 0.9.17 - a self-contained skills-only install
 
 `plugins/pstack/skills/` is a supported installation boundary. The [`skills` CLI](https://github.com/vercel-labs/skills) resolves it as a subtree URL, so a skills-only install needs no clone and no second maintained copy of the tree.
 
@@ -58,7 +106,7 @@ Two checks keep the boundary honest. `tools/validate-skills.mjs` resolves bare, 
 
 The `SessionStart` auto-fire hook, the Codex prompt stubs, and Claude Code's native subagent registration remain runtime-specific and outside the boundary by design. The README records what a skills-only install does not carry.
 
-## 0.9.16 — native Agent Skills paths for opencode and Gemini CLI
+## 0.9.16 - native Agent Skills paths for opencode and Gemini CLI
 
 opencode and Gemini CLI both discover the shared `plugins/pstack/skills/` tree natively. They support the same `~/.agents/skills/` user directory already used by the Codex and Prime installs, so one symlink loop now installs all four Agent Skills runtimes. Neither new runtime gets generated command files. The generator keeps its single Codex-only prompt adapter.
 
@@ -68,11 +116,11 @@ The generator now validates the portable `name` and `description` frontmatter on
 
 `codex-tools.md` remains a Codex-only adapter. Platform notes no longer send arbitrary non-Claude runtimes through Codex tool names, model slugs, or configuration paths. Gemini CLI, opencode, and Prime Agent get native discovery, but their Claude-specific execution equivalents and delegation-heavy workflows remain runtime-owned and unverified. Model policy is unchanged.
 
-## 0.9.15 — retire Opus 4.8 from the model defaults
+## 0.9.15 - retire Opus 4.8 from the model defaults
 
 `plugins/pstack/models.json` no longer names `claude-opus-4-8` as a default. Every single-model role that used it (`feature, refactoring`, `judgment and prose`, `how explorer`, `how explainer`, `why investigators`, `why synthesizer`, `reflect tooling`, `reflect judgment, divergent, synthesizer`, `swarm workers`, and the single-role default) now runs `claude-opus-5`. The three roles that carry the hardest code changes (`bug-fix`, `perf-issue`, `hillclimb`) move to `claude-fable-5`, matching the existing `strongest judgment` row. `claude-haiku-4-5` leaves the four panels (`how critics`, `arena runners`, `architect runners`, `interrogate reviewers`), so each runs the three-model panel `claude-opus-5`, `claude-fable-5`, `claude-sonnet-5`; the `models.json` key is now `panel`, not `panelQuad`. The generator restamped the `## Models` sections, the interrogate reviewer table, and the interrogate menu row; the README substitution table rows for the Cursor `claude-opus-4-X-thinking-xhigh` variant and the panel quad now state the current defaults. Opus 4.8 stays in the available-model list for `/setup-pstack` overrides.
 
-## 0.9.14 — single-source the duplicated facts behind a generator
+## 0.9.14 - single-source the duplicated facts behind a generator
 
 Four PRs (#36, #37, #40, #39) moved every convention-held duplication behind `tools/generate.mjs`, which stamps each fact from one source and fails CI on any diff after regeneration.
 
@@ -83,7 +131,7 @@ Four PRs (#36, #37, #40, #39) moved every convention-held duplication behind `to
 
 No skill workflow changes; the skill-body edits replace inline model slugs with role references resolved one section down in the same file. This bump exists to ship those prose changes to installed copies.
 
-## 0.9.13 — drop the Claude Code command trampolines
+## 0.9.13 - drop the Claude Code command trampolines
 
 Claude Code renders a plugin's commands and its user-invocable skills in the same slash menu, so every one of the 31 trampolines showed `/pstack:<name>` twice (#22, reported by @razvangirgiz). The trampolines existed for Codex, which has no skill picker of its own; on Claude Code they only shadowed the skill, which is what 0.9.7 and 0.9.8 spent two releases working around.
 
@@ -91,11 +139,11 @@ Claude Code renders a plugin's commands and its user-invocable skills in the sam
 
 The 0.9.7 collision machinery retires with the collision. `tests/skill-collision-repro.sh` drops the three trampoline-precedence legs and the command-flag invariant, and gains two static checks: `plugins/pstack/commands/` must not exist (an upstream sync reintroducing it fails here rather than silently restoring the duplicates), and every Codex prompt must have a matching skill. The 0.9.8 flag invariant widens from command-paired skills to every skill, since none may carry `disable-model-invocation`. The remaining behavioral leg proves the assumption this all rests on: a command-less plugin still serves `/plugin:name`.
 
-## 0.9.12 — pin the thermo-nuclear report format
+## 0.9.12 - pin the thermo-nuclear report format
 
 The 0.9.11 swarm routing flattened thermo-nuclear reviews into one consolidated report, dropping the summary-plus-per-subsystem-file layout earlier reviews produced. `thermo-nuclear-code-quality-review` now carries a Report Format section that pins the layered deliverable (a ~200-line narrative summary plus one detail file per subsystem reviewer) and overrides swarm's aggregation rules for this review (#28).
 
-## 0.9.11 — sync to upstream v0.14.2
+## 0.9.11 - sync to upstream v0.14.2
 
 Catches the port up with upstream `cursor/plugins/pstack` from `3fe2823` (v0.11.3) to `4612556` (v0.14.2). Skills 48 → 52, commands 27 → 31, subagents 1 → 2, plus a vendored `scripts/` tree under `poteto-mode/`.
 
@@ -126,7 +174,7 @@ Substitutions in the six: Cursor cloud agents become local background subagents 
 
 **Verified.** 52 skills / 31 commands / 2 subagents; three manifests parse at 0.9.11. Static invariants pass, including the repaired quad check. The vendored scripts pass `bun install --frozen-lockfile`, `bun test orch watch-pr` (52 tests), and `bun run typecheck` from their ported location. Not yet live-verified in a Claude Code or Codex session.
 
-## 0.9.10 — sync to upstream v0.11.3
+## 0.9.10 - sync to upstream v0.11.3
 
 Catches the port up with upstream `cursor/plugins/pstack` from `0452e08` (v0.10.0) to `3fe2823` (v0.11.3). Skill count 44 → 48, commands 24 → 27.
 
@@ -142,13 +190,13 @@ Catches the port up with upstream `cursor/plugins/pstack` from `0452e08` (v0.10.
 
 **Deliberately not ported.** Sticky mode (#144) is Cursor-only frontmatter (`mode`/`icon`/`color`/`reminder`) with no Claude Code equivalent; the port's 0.9.5 SessionStart hook already auto-fires `poteto-mode` with the same non-trivial/trivial/opt-out logic. Benny (#137) remains out, per the earlier review.
 
-## 0.9.9 — principle leaves hide from the slash menu
+## 0.9.9 - principle leaves hide from the slash menu
 
 0.9.8 kept `disable-model-invocation: true` on the 20 `principle-*` leaves, on the reasoning that they have no command and are read by path from `poteto-mode`. But that flag only blocks *model* invocation. It does not hide a skill from the user `/` menu, so all 20 surfaced as bare `/principle-*` slash commands in every session (confirmed across projects on the desktop app). They are internal references; users should never invoke them.
 
 Fix: swap the flag for `user-invocable: false` on all 20 leaves. Per the [Claude Code skills docs](https://code.claude.com/docs/en/skills.md), `user-invocable: false` hides a skill from the `/` menu and controls menu visibility only, not Skill-tool or file access — so `poteto-mode` reading each leaf by path (`../principle-<name>/SKILL.md`, the mechanism the leaves have always used) is untouched. The two flags are mutually exclusive: setting both leaves a skill neither user- nor model-invocable, so this is a swap, not an addition. The visible consequence is that the leaves become model-auto-invocable on description match — the same standing the 12 command-paired skills took in 0.9.8, and immaterial to the by-path reference the leaves actually rely on. The invariant is now: every command carries `disable-model-invocation: true`, no command-paired skill carries it, and every `principle-*` leaf carries `user-invocable: false`.
 
-## 0.9.8 — command-paired skills drop `disable-model-invocation`
+## 0.9.8 - command-paired skills drop `disable-model-invocation`
 
 The 0.9.7 fix put `disable-model-invocation: true` on all 24 command trampolines so the Skill tool resolves a colliding name to the skill. But 12 of those skills carried the same flag in their own frontmatter (present since the initial port), and the flag on a **skill** makes the Skill tool refuse the invocation outright. Net effect: the 0.9.5 SessionStart mandate ("invoke `pstack:poteto-mode` with the Skill tool") was refused every session, five of the six direct-entry skills it lists (`poteto-mode`, `tdd`, `architect`, `arena`, `interrogate`; only `how` and `why` were unflagged) were model-unreachable, and every user-typed `/pstack:<name>` for a flagged skill expanded to a trampoline body the model then couldn't follow. 0.9.7 didn't cause the skill-side flags, but it surfaced them: before it, the same calls died in the trampoline loop instead.
 
@@ -156,7 +204,7 @@ Fix: remove the flag from the 12 command-paired skills that carried it (`archite
 
 `tests/skill-collision-repro.sh` gains the mirrored static invariant (no skill with a same-named command may carry the flag) and a fourth behavioral leg preserving the repro: with the flag on the skill, the Skill tool refuses the invocation even though the command no longer shadows it.
 
-## 0.9.7 — command trampolines no longer shadow their skills
+## 0.9.7 - command trampolines no longer shadow their skills
 
 Every user-facing skill ships with a same-named `commands/<name>.md` trampoline whose body is "Invoke the `<name>` skill and follow it." On Claude Code, the Skill tool resolves a colliding name to the **command**, not the skill — so a model-initiated invoke of `pstack:<name>` got the trampoline back, which told it to invoke the skill, which resolved to the trampoline again. Mutual recursion; the real `SKILL.md` never loaded. This hit every model-side entry path, including the 0.9.5 SessionStart mandate (whose whole job is telling the model to invoke `pstack:poteto-mode`), and it made each name appear twice in the model's skill list. Observed in desktop-app sessions (inline `--plugin-dir` loading, same path as the 0.9.3 entry); reproduced on CLI 2.1.195 with a minimal two-artifact plugin.
 
@@ -164,7 +212,7 @@ Fix: all 24 command files now carry `disable-model-invocation: true` — the fla
 
 The repro is preserved as `tests/skill-collision-repro.sh` (manual; needs the `claude` CLI, makes three haiku calls). It checks the static invariant (every command carries the flag) and the three behavioral legs: command wins the collision without the flag, skill wins with it, user-typed `/command` still runs. The first leg is a precedence detector — if it ever fails, upstream changed the undocumented resolution order and the flag should be re-evaluated, not the fix declared broken.
 
-## 0.9.6 — hook hardening and duplication trims (thermo-nuclear review)
+## 0.9.6 - hook hardening and duplication trims (thermo-nuclear review)
 
 A strict maintainability review of the 0.9.3–0.9.5 range drove these:
 
@@ -176,15 +224,15 @@ A strict maintainability review of the 0.9.3–0.9.5 range drove these:
 
 One upstream pstack commit landed after the `e46364b` sync: `0452e08` adds the dormant `automations/benny/` pack (Slack issue triage plus reproduce-and-fix, built on Cursor's event-triggered automations) and bumps upstream to 0.10.0. Deliberately not ported — rationale and revisit criteria in README → What's deliberately not ported. `cursor-team-kit` has no commits since the sync point (its latest, `679fdaf`, 2026-05-28, predates `e46364b`). The port's skill tree was current with upstream HEAD as of this note; the later 0.9.10 sync carries it forward to v0.11.3 (see above).
 
-## 0.9.5 — poteto-mode auto-fires via SessionStart hook
+## 0.9.5 - poteto-mode auto-fires via SessionStart hook
 
 `plugins/pstack/hooks/` is new. `hooks.json` registers a `SessionStart` hook (matcher `startup|clear|compact`) that injects `hooks/session-start-context.md` (~0.3k tokens) as additional context — the same mechanism superpowers uses to auto-load its skill-use mandate. The injected block routes any non-trivial engineering task into `pstack:poteto-mode` before the first response, lists the direct-entry skills, tells dispatched subagents to ignore it, and defers to explicit user instructions. The full poteto-mode skill still loads only on invoke. `run-hook.cmd` (cross-platform polyglot) and the JSON-emission pattern in `session-start` are adapted from superpowers (MIT; see NOTICE.md and LICENSE-superpowers). Codex is unaffected — it has no plugin hook runtime; invoke poteto-mode by name there.
 
-## 0.9.4 — Sonnet 5 joins the default panels
+## 0.9.4 - Sonnet 5 joins the default panels
 
 The multi-model panels (`arena` runners, `architect` runners, `interrogate` reviewers, `how` critics) grow from a triple to a quad: `claude-opus-4-8`, `claude-sonnet-5`, `claude-opus-4-6`, `claude-sonnet-4-6` — both generations in each of two tiers. This also restores upstream's four-way `interrogate` split; the port had been running three reviewers under a "four different models" description. `setup-pstack` adds Sonnet 5 (`claude-sonnet-5`) to the available-family enumeration and to the four panel rows of its default sheet. Single-model delegation defaults stay `claude-opus-4-8`. Touched: `arena`, `architect`, `interrogate`, `how`, `setup-pstack`, `poteto-mode` (`SKILL.md`, `references/plan.md`, `references/codex-tools.md`), and the README substitution-table panel row. The historical Cursor→Claude mapping rows (`composer-2.5-fast`, `gpt-5.x`) are unchanged — they record what the 0.9.2 sync substituted, not current defaults.
 
-## 0.9.3 — dependency declaration removed
+## 0.9.3 - dependency declaration removed
 
 `plugin.json` no longer declares `dependencies: [{ "name": "plugin-dev", "marketplace": "claude-plugins-official" }]`, and `marketplace.json` drops the matching `allowCrossMarketplaceDependenciesOn`. The Claude Code desktop app passes every enabled plugin to the CLI as a session-only `--plugin-dir`, which strips marketplace identity (`pstack@inline`); a cross-marketplace dependency can never resolve in that mode, and the loader disables the entire plugin with `dependency-unsatisfied`. Result: pstack loaded in the CLI and the VS Code extension but silently vanished from desktop-app sessions. `optional: true` on a dependency entry passes `claude plugin validate` but is not honored by the loader (tested on 2.1.197). `plugin-dev` is now a documented manual install (README → Dependencies); skill bodies still route skill-authoring to `plugin-dev:skill-development` when it is present.
 
@@ -216,7 +264,7 @@ pstack diverges from superpowers in one respect, and it is deliberate. superpowe
 
 **Maintenance.** The plugin version string now lives in three manifests: `plugins/pstack/.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, and `plugins/pstack/.codex-plugin/plugin.json`. A version bump must update all three; `tests/skill-collision-repro.sh` checks they match. `.agents/plugins/marketplace.json` carries no version field. The default panel quad is enumerated only in the four panel skills (`arena`, `architect`, `how`, `interrogate`) and the `setup-pstack` sheet — keep those lines grep-identical when models change (`tests/skill-collision-repro.sh` checks they match, deriving the canonical quad from `setup-pstack`'s `arena runners` row and reading `interrogate`'s from its reviewer table); `poteto-mode` and its references deliberately do not enumerate it. After a sync that touches `skills/poteto-mode/scripts/`, run `bun install --frozen-lockfile`, `bun test orch watch-pr`, and `bun run typecheck` from that directory. `hooks/session-start-context.md` restates skill one-liners — re-verify it whenever skill names or descriptions change. `plugins/pstack/commands/` must not exist (see 0.9.13); upstream ships trampolines there and a sync that restores them duplicates every slash-menu row, so move any new ones to `.codex-plugin/prompts/`. No skill may carry `disable-model-invocation` in its frontmatter (see 0.9.8) — on a skill it makes the Skill tool refuse the invocation, breaking the SessionStart mandate. The 21 command-less `principle-*` leaves instead carry `user-invocable: false` (see 0.9.9) to stay out of the `/` menu while `poteto-mode` reads them by path: `grep -L 'user-invocable: false' plugins/pstack/skills/principle-*/SKILL.md` must print nothing, and no leaf may also carry `disable-model-invocation` (the pair cancels to a dead skill). Re-run `tests/skill-collision-repro.sh` after Claude Code upgrades; its behavioral leg depends on undocumented slash resolution. The script checks the static invariants: the absent `commands/` directory, Codex prompts having matching skills, the skill and leaf flags, version parity across the three manifests, and the default model quad's identity across the four panel skills and `setup-pstack`.
 
-## 0.9.2 sync (against upstream `e46364b`)
+## 0.9.2 - sync against upstream `e46364b`
 
 Upstream pstack jumped from `0.1.0` → `0.9.2` between syncs. 30+ commits, including 11 new files.
 
